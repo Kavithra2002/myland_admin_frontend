@@ -1,0 +1,118 @@
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import {
+  HiOutlineHome,
+  HiOutlineStar,
+  HiOutlineOfficeBuilding,
+  HiOutlineUsers,
+  HiOutlineChatAlt2,
+  HiOutlineBell,
+} from 'react-icons/hi';
+import logo from '../assets/myland-logo.png';
+
+const NAV = [
+  { to: '/', label: 'Dashboard', icon: HiOutlineHome, end: true },
+  { to: '/reviews', label: 'Review Authorizer', icon: HiOutlineStar },
+  { to: '/listings', label: 'Manage Listings', icon: HiOutlineOfficeBuilding },
+  { to: '/users', label: 'User Management', icon: HiOutlineUsers },
+  { to: '/inquiries', label: 'Inquiries', icon: HiOutlineChatAlt2 },
+];
+
+const TITLES = {
+  '/': 'Dashboard',
+  '/reviews': 'Review Authorizer',
+  '/listings': 'Manage Listings',
+  '/users': 'User Management',
+  '/inquiries': 'Inquiries',
+};
+
+export default function AdminLayout() {
+  const { pathname } = useLocation();
+
+  return (
+    <div className="min-h-screen bg-myland-cream flex">
+      <aside className="hidden md:flex w-64 shrink-0 flex-col bg-white border-r border-myland-mist">
+        <div className="flex items-center gap-3 px-6 py-5 border-b border-myland-mist">
+          <img src={logo} alt="MyLand" className="h-9 w-auto" />
+          <div>
+            <p className="font-display font-bold text-sm text-myland-ink leading-none">myland</p>
+            <p className="text-[10px] uppercase tracking-[0.16em] text-myland-slate mt-1">Admin</p>
+          </div>
+        </div>
+        <nav className="flex-1 px-3 py-4 space-y-1">
+          {NAV.map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-display font-semibold transition-colors ${
+                    isActive
+                      ? 'bg-myland-red/10 text-myland-red'
+                      : 'text-myland-slate hover:bg-myland-cream hover:text-myland-ink'
+                  }`
+                }
+              >
+                <Icon className="text-lg shrink-0" />
+                {item.label}
+              </NavLink>
+            );
+          })}
+        </nav>
+        <p className="px-6 py-4 text-[11px] text-myland-slate border-t border-myland-mist">
+          MyLand internal workspace
+        </p>
+      </aside>
+
+      <div className="flex-1 min-w-0 flex flex-col">
+        <header className="sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-myland-mist">
+          <div className="flex items-center justify-between gap-4 px-4 md:px-8 py-4">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-myland-red font-semibold">
+                MyLand Admin
+              </p>
+              <h1 className="font-display font-bold text-xl text-myland-ink">
+                {TITLES[pathname] || 'Admin'}
+              </h1>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                className="w-10 h-10 rounded-full border border-myland-mist bg-white flex items-center justify-center text-myland-ink"
+                aria-label="Notifications"
+              >
+                <HiOutlineBell />
+              </button>
+              <div className="hidden sm:flex items-center gap-2 rounded-full border border-myland-mist bg-white pl-1 pr-3 py-1">
+                <span className="w-8 h-8 rounded-full bg-myland-red text-white text-xs font-display font-bold flex items-center justify-center">
+                  KA
+                </span>
+                <span className="text-sm font-display font-semibold text-myland-ink">Kavithra</span>
+              </div>
+            </div>
+          </div>
+          <nav className="md:hidden flex gap-1 overflow-x-auto px-4 pb-3 no-scrollbar">
+            {NAV.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) =>
+                  `shrink-0 rounded-full px-3 py-1.5 text-xs font-display font-semibold ${
+                    isActive ? 'bg-myland-red text-white' : 'bg-myland-mist text-myland-slate'
+                  }`
+                }
+              >
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+        </header>
+        <main className="flex-1 px-4 md:px-8 py-6 md:py-8">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
+}
