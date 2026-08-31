@@ -95,6 +95,74 @@ function sectionLabel(id) {
   return SECTIONS.find((item) => item.id === id)?.label || id;
 }
 
+function moveHint(blog, placement) {
+  if (placement === 'cover') {
+    return 'This post becomes the Cover story (the journal hero). If another post is already Cover story, it moves to Field notes.';
+  }
+  if (placement === 'features') {
+    return 'This post becomes one of the two Field notes cards. If Field notes already has two, the last one moves to The index.';
+  }
+  if (blog.placement === 'cover') {
+    return 'This post moves to The index (the numbered list). Cover story will be empty until you move another post there.';
+  }
+  return 'This post moves to The index (the numbered list at the bottom of the public Blog page).';
+}
+
+const CONFIRM_BTN_INK =
+  'inline-flex items-center justify-center rounded-full bg-myland-ink text-white font-display font-semibold text-xs px-5 py-2.5 disabled:opacity-50';
+const CONFIRM_BTN_RED =
+  'inline-flex items-center justify-center rounded-full bg-myland-red text-white font-display font-semibold text-xs px-5 py-2.5 hover:bg-myland-redDark disabled:opacity-50';
+
+function confirmCopy(confirm) {
+  if (confirm.type === 'add') {
+    return {
+      title: 'Add this blog?',
+      body: `It will be published in ${sectionLabel(confirm.blog.placement)} on the public Blog page.`,
+      action: 'Yes, add blog',
+      actionClass: CONFIRM_BTN_INK,
+    };
+  }
+  if (confirm.type === 'save') {
+    return {
+      title: 'Save these changes?',
+      body: 'The public Blog page will show the updated post.',
+      action: 'Yes, save changes',
+      actionClass: CONFIRM_BTN_INK,
+    };
+  }
+  if (confirm.type === 'shift') {
+    const goingUp = confirm.direction === 'up';
+    return {
+      title: goingUp ? 'Move this post up?' : 'Move this post down?',
+      body: `This changes the order in ${sectionLabel(confirm.blog.placement)}.`,
+      action: goingUp ? 'Yes, move up' : 'Yes, move down',
+      actionClass: CONFIRM_BTN_INK,
+    };
+  }
+  if (confirm.type === 'move') {
+    return {
+      title: `Move to ${sectionLabel(confirm.placement)}?`,
+      body: moveHint(confirm.blog, confirm.placement),
+      action: `Yes, move to ${sectionLabel(confirm.placement)}`,
+      actionClass: CONFIRM_BTN_INK,
+    };
+  }
+  return {
+    title: 'Delete this blog?',
+    body: 'The row stays in the database with status deleted. It is hidden from the public Blog page. You can still see it under Deleted.',
+    action: 'Yes, delete',
+    actionClass: CONFIRM_BTN_RED,
+  };
+}
+
+function confirmBusyKey(confirm) {
+  if (!confirm) return '';
+  if (confirm.type === 'add' || confirm.type === 'save') return 'save';
+  if (confirm.type === 'shift') return confirm.blog.id + confirm.direction;
+  if (confirm.type === 'move') return confirm.blog.id + confirm.placement;
+  return confirm.blog.id + confirm.type;
+}
+
 export default function BlogListing() {
   const [blogs, setBlogs] = useState([]);
   const [filter, setFilter] = useState('cover');
@@ -106,6 +174,7 @@ export default function BlogListing() {
   const [busy, setBusy] = useState('');
   const [loading, setLoading] = useState(true);
   const [confirm, setConfirm] = useState(null);
+  const [imageBroken, setImageBroken] = useState(false);
 
   const load = async () => {
     const items = await fetchBlogs();
@@ -151,6 +220,7 @@ export default function BlogListing() {
     setEditing(blog.id);
     setForm(formFromBlog(blog));
     setSlugTouched(true);
+    setImageBroken(false);
     setError('');
     setNotice('');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -163,6 +233,7 @@ export default function BlogListing() {
   };
 
   const setField = (key, value) => {
+    if (key === 'imageUrl') setImageBroken(false);
     setForm((current) => {
       const next = { ...current, [key]: value };
       if (key === 'title' && !slugTouched) next.slug = slugify(value);
@@ -170,61 +241,69 @@ export default function BlogListing() {
     });
   };
 
-  const save = async (event) => {
+  const requestSave = (event) => {
     event.preventDefault();
-    setBusy('save');
-    setError('');
-    setNotice('');
+    setConfirm({
+      type: editing === 'new' ? 'add' : 'save',
+      blog: {
+        id: editing === 'new' ? 'new' : editing,
+        title: form.title,
+        excerpt: form.excerpt,
+        placement: form.placement,
+      },
+    });
+  };
+
+  const persistForm = async () => {
     const payload = {
       ...form,
       featured: form.placement === 'cover',
       publishedAt: form.publishedAt || undefined,
       readTime: form.readTime || undefined,
     };
-    try {
-      if (editing === 'new') {
-        await createBlog(payload);
-        setNotice(`Blog added to ${sectionLabel(form.placement)}.`);
-      } else {
-        await updateBlog(editing, payload);
-        setNotice('Blog updated.');
-      }
-      await load();
-      closeForm();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusy('');
+    if (editing === 'new') {
+      await createBlog(payload);
+      setNotice(`Blog added to ${sectionLabel(form.placement)}.`);
+    } else {
+      await updateBlog(editing, payload);
+      setNotice('Blog updated.');
     }
+    await load();
+    closeForm();
   };
 
-  const moveTo = async (id, placement) => {
-    setBusy(id + placement);
-    setError('');
-    setNotice('');
-    try {
-      const items = await placeBlog(id, placement);
-      setBlogs(items);
-      setNotice(`Moved to ${sectionLabel(placement)}.`);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusy('');
-    }
+  const confirmBusy = Boolean(confirm && busy === confirmBusyKey(confirm));
+  const copy = confirm ? confirmCopy(confirm) : null;
+
+  const closeConfirm = () => {
+    if (confirmBusy) return;
+    setConfirm(null);
   };
 
-  const runDelete = async () => {
+  const runConfirm = async () => {
     if (!confirm) return;
-    const blog = confirm;
-    setBusy(blog.id + 'delete');
+    const { type, blog, placement, direction } = confirm;
+    setBusy(confirmBusyKey(confirm));
     setError('');
     setNotice('');
     try {
-      await deleteBlog(blog.id);
-      setNotice('Blog marked deleted. It stays in the database.');
+      if (type === 'add' || type === 'save') {
+        await persistForm();
+      } else if (type === 'move') {
+        const items = await placeBlog(blog.id, placement);
+        setBlogs(items);
+        setNotice(`Moved to ${sectionLabel(placement)}.`);
+      } else if (type === 'shift') {
+        const items = await reorderBlog(blog.id, direction);
+        setBlogs(items);
+        setNotice(direction === 'up' ? 'Moved up in this section.' : 'Moved down in this section.');
+      } else {
+        await deleteBlog(blog.id);
+        setNotice('Blog marked deleted. It stays in the database.');
+        if (editing === blog.id) closeForm();
+        await load();
+      }
       setConfirm(null);
-      if (editing === blog.id) closeForm();
-      await load();
     } catch (err) {
       setError(err.message);
       setConfirm(null);
@@ -241,19 +320,6 @@ export default function BlogListing() {
       await updateBlog(blog.id, { status: 'active', published: true, placement: 'index' });
       setNotice('Blog restored to The index. Move it if you want it in Cover story or Field notes.');
       await load();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusy('');
-    }
-  };
-
-  const shift = async (id, direction) => {
-    setBusy(id + direction);
-    setError('');
-    try {
-      const items = await reorderBlog(id, direction);
-      setBlogs(items);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -313,7 +379,7 @@ export default function BlogListing() {
 
       {editing != null && (
         <form
-          onSubmit={save}
+          onSubmit={requestSave}
           className="bg-white rounded-xl3 p-5 md:p-6 shadow-card border border-myland-mist/80 space-y-5"
         >
           <div className="flex items-start justify-between gap-3">
@@ -426,13 +492,33 @@ export default function BlogListing() {
               className={inputClass}
               value={form.imageUrl}
               onChange={(e) => setField('imageUrl', e.target.value)}
-              placeholder="https://images.unsplash.com/..."
+              placeholder="https://images.unsplash.com/photo-..."
               required={editing === 'new'}
             />
+            <p className="text-xs text-myland-slate mt-2">
+              Use a direct image file URL (usually starts with{' '}
+              <span className="font-semibold text-myland-ink">images.unsplash.com</span> or ends in
+              .jpg / .png / .webp). A photo page like unsplash.com/photos/... is a webpage, so the
+              thumbnail will stay broken.
+            </p>
           </Field>
           {form.imageUrl && (
-            <div className="h-40 rounded-xl2 overflow-hidden bg-myland-cream">
-              <img src={form.imageUrl} alt="" className="w-full h-full object-cover" />
+            <div className="h-40 rounded-xl2 overflow-hidden bg-myland-cream relative">
+              {imageBroken ? (
+                <div className="absolute inset-0 flex items-center justify-center px-4 text-center">
+                  <p className="text-sm text-myland-red">
+                    This URL is not a usable image file. Right-click the photo → Copy image
+                    address, or paste a link from images.unsplash.com.
+                  </p>
+                </div>
+              ) : (
+                <img
+                  src={form.imageUrl}
+                  alt=""
+                  className="w-full h-full object-cover"
+                  onError={() => setImageBroken(true)}
+                />
+              )}
             </div>
           )}
 
@@ -539,7 +625,7 @@ export default function BlogListing() {
                     <button
                       type="button"
                       disabled={busy.startsWith(blog.id) || index === 0}
-                      onClick={() => shift(blog.id, 'up')}
+                      onClick={() => setConfirm({ type: 'shift', blog, direction: 'up' })}
                       className="inline-flex items-center justify-center gap-2 rounded-full border border-myland-mist bg-white text-myland-ink font-display font-semibold text-xs px-3 py-2 hover:border-myland-ink/30 disabled:opacity-40"
                     >
                       <HiArrowUp /> Up
@@ -547,7 +633,7 @@ export default function BlogListing() {
                     <button
                       type="button"
                       disabled={busy.startsWith(blog.id) || index === visible.length - 1}
-                      onClick={() => shift(blog.id, 'down')}
+                      onClick={() => setConfirm({ type: 'shift', blog, direction: 'down' })}
                       className="inline-flex items-center justify-center gap-2 rounded-full border border-myland-mist bg-white text-myland-ink font-display font-semibold text-xs px-3 py-2 hover:border-myland-ink/30 disabled:opacity-40"
                     >
                       <HiArrowDown /> Down
@@ -557,7 +643,7 @@ export default function BlogListing() {
                         key={item.id}
                         type="button"
                         disabled={busy.startsWith(blog.id)}
-                        onClick={() => moveTo(blog.id, item.id)}
+                        onClick={() => setConfirm({ type: 'move', blog, placement: item.id })}
                         className="inline-flex items-center justify-center rounded-full border border-myland-mist bg-white text-myland-ink font-display font-semibold text-xs px-3 py-2 hover:border-myland-ink/30 disabled:opacity-50"
                       >
                         Move to {item.label}
@@ -573,7 +659,7 @@ export default function BlogListing() {
                     <button
                       type="button"
                       disabled={busy.startsWith(blog.id)}
-                      onClick={() => setConfirm(blog)}
+                      onClick={() => setConfirm({ type: 'delete', blog })}
                       className="inline-flex items-center justify-center gap-2 rounded-full border border-myland-mist bg-white text-myland-red font-display font-semibold text-xs px-3 py-2 hover:border-myland-red disabled:opacity-50"
                     >
                       <HiOutlineTrash /> Delete
@@ -614,47 +700,48 @@ export default function BlogListing() {
             type="button"
             className="absolute inset-0 bg-myland-ink/40"
             aria-label="Cancel"
-            onClick={() => !busy.startsWith(confirm.id) && setConfirm(null)}
+            onClick={closeConfirm}
           />
           <div
             role="dialog"
             aria-modal="true"
-            aria-labelledby="blog-delete-title"
+            aria-labelledby="blog-confirm-title"
             className="relative w-full max-w-md bg-white rounded-xl3 p-6 shadow-card"
           >
             <button
               type="button"
-              onClick={() => !busy.startsWith(confirm.id) && setConfirm(null)}
+              onClick={closeConfirm}
               className="absolute top-4 right-4 w-8 h-8 rounded-full border border-myland-mist flex items-center justify-center text-myland-slate"
               aria-label="Cancel"
             >
               <HiX />
             </button>
-            <h3 id="blog-delete-title" className="font-display font-semibold text-lg text-myland-ink pr-8">
-              Delete this blog?
+            <h3 id="blog-confirm-title" className="font-display font-semibold text-lg text-myland-ink pr-8">
+              {copy.title}
             </h3>
-            <p className="text-sm text-myland-slate mt-2">
-              The row stays in the database with status deleted. It is hidden from the public Blog
-              page. You can still see it under Deleted.
-            </p>
+            <p className="text-sm text-myland-slate mt-2">{copy.body}</p>
             <div className="mt-4 rounded-2xl bg-myland-cream px-4 py-3">
-              <p className="font-display font-semibold text-sm text-myland-ink">{confirm.title}</p>
-              <p className="text-xs text-myland-red mt-0.5">{sectionLabel(confirm.placement)}</p>
-              <p className="text-sm text-myland-slate mt-2 line-clamp-3">{confirm.excerpt}</p>
+              <p className="font-display font-semibold text-sm text-myland-ink">{confirm.blog.title}</p>
+              <p className="text-xs text-myland-red mt-0.5">
+                {sectionLabel(confirm.blog.placement)}
+                {confirm.type === 'move' ? ` → ${sectionLabel(confirm.placement)}` : ''}
+                {confirm.type === 'shift' ? (confirm.direction === 'up' ? ' · move up' : ' · move down') : ''}
+              </p>
+              <p className="text-sm text-myland-slate mt-2 line-clamp-3">{confirm.blog.excerpt}</p>
             </div>
             <div className="flex flex-wrap gap-2 mt-5">
               <button
                 type="button"
-                disabled={busy.startsWith(confirm.id)}
-                onClick={runDelete}
-                className="inline-flex items-center justify-center rounded-full bg-myland-red text-white font-display font-semibold text-xs px-5 py-2.5 hover:bg-myland-redDark disabled:opacity-50"
+                disabled={confirmBusy}
+                onClick={runConfirm}
+                className={copy.actionClass}
               >
-                {busy.startsWith(confirm.id) ? 'Working…' : 'Yes, delete'}
+                {confirmBusy ? 'Working…' : copy.action}
               </button>
               <button
                 type="button"
-                disabled={busy.startsWith(confirm.id)}
-                onClick={() => setConfirm(null)}
+                disabled={confirmBusy}
+                onClick={closeConfirm}
                 className="btn-ghost !py-2.5 !px-5 !text-xs"
               >
                 Cancel
