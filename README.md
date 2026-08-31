@@ -18,4 +18,6 @@ The app runs at **http://localhost:5174**.
 - **User Management** — sample staff accounts
 - **Inquiries** — sample inquiry inbox
 
-Reviews submitted on the public site (`myland-part1-2`) are stored in `data/reviews.json` and appear here for moderation. Approved reviews show on the project page.
+Reviews submitted on the public site (`client`) are stored in the shared PostgreSQL database (`localhost:5432/postgres`) and appear here for moderation. Approved reviews show on the project page.
+
+Connection settings live in `E:\AMBEON\myland\.env`.
