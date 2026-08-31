@@ -9,13 +9,38 @@ import {
   HiStar,
   HiX,
 } from 'react-icons/hi';
-import { createBlog, deleteBlog, fetchBlogs, reorderBlog, updateBlog } from '../api/blogs.js';
+import {
+  createBlog,
+  deleteBlog,
+  fetchBlogs,
+  placeBlog,
+  reorderBlog,
+  updateBlog,
+} from '../api/blogs.js';
 
 const TOPICS = ['Site visits', 'Titles', 'Districts', 'Loans', 'Investment', 'Journal', 'Guides'];
 const LAYOUTS = [
   { id: 'auto', label: 'Auto' },
   { id: 'image-left', label: 'Image left' },
   { id: 'image-right', label: 'Image right' },
+];
+
+const SECTIONS = [
+  {
+    id: 'cover',
+    label: 'Cover story',
+    hint: 'The journal hero at the top of the public Blog page. One post only.',
+  },
+  {
+    id: 'features',
+    label: 'Field notes',
+    hint: 'The two large feature cards under Field notes. A third move pushes the last one to The index.',
+  },
+  {
+    id: 'index',
+    label: 'The index',
+    hint: 'The numbered list at the bottom of the Blog page.',
+  },
 ];
 
 const EMPTY_FORM = {
@@ -27,9 +52,9 @@ const EMPTY_FORM = {
   imageUrl: '',
   readTime: '',
   layout: 'auto',
-  featured: false,
   published: true,
   publishedAt: '',
+  placement: 'index',
 };
 
 const inputClass =
@@ -60,15 +85,19 @@ function formFromBlog(blog) {
     imageUrl: blog.imageUrl || blog.image || '',
     readTime: blog.readTime || '',
     layout: blog.layout || 'auto',
-    featured: Boolean(blog.featured),
     published: blog.published !== false,
     publishedAt: toDateInput(blog.publishedAt),
+    placement: blog.placement || 'index',
   };
+}
+
+function sectionLabel(id) {
+  return SECTIONS.find((item) => item.id === id)?.label || id;
 }
 
 export default function BlogListing() {
   const [blogs, setBlogs] = useState([]);
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState('cover');
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [slugTouched, setSlugTouched] = useState(false);
@@ -76,6 +105,7 @@ export default function BlogListing() {
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState('');
   const [loading, setLoading] = useState(true);
+  const [confirm, setConfirm] = useState(null);
 
   const load = async () => {
     const items = await fetchBlogs();
@@ -88,26 +118,30 @@ export default function BlogListing() {
       .finally(() => setLoading(false));
   }, []);
 
+  const active = useMemo(() => blogs.filter((item) => item.status !== 'deleted'), [blogs]);
+  const deleted = useMemo(() => blogs.filter((item) => item.status === 'deleted'), [blogs]);
+
   const visible = useMemo(() => {
-    if (filter === 'published') return blogs.filter((item) => item.published);
-    if (filter === 'drafts') return blogs.filter((item) => !item.published);
-    if (filter === 'featured') return blogs.filter((item) => item.featured);
-    return blogs;
-  }, [blogs, filter]);
+    if (filter === 'deleted') return deleted;
+    return active.filter((item) => (item.placement || 'index') === filter);
+  }, [active, deleted, filter]);
 
   const counts = useMemo(
     () => ({
-      all: blogs.length,
-      published: blogs.filter((item) => item.published).length,
-      drafts: blogs.filter((item) => !item.published).length,
-      featured: blogs.filter((item) => item.featured).length,
+      cover: active.filter((item) => item.placement === 'cover').length,
+      features: active.filter((item) => item.placement === 'features').length,
+      index: active.filter((item) => item.placement === 'index').length,
+      deleted: deleted.length,
     }),
-    [blogs]
+    [active, deleted]
   );
 
+  const currentSection = SECTIONS.find((item) => item.id === filter);
+
   const openNew = () => {
+    const placement = filter === 'deleted' ? 'index' : filter;
     setEditing('new');
-    setForm(EMPTY_FORM);
+    setForm({ ...EMPTY_FORM, placement });
     setSlugTouched(false);
     setError('');
     setNotice('');
@@ -143,13 +177,14 @@ export default function BlogListing() {
     setNotice('');
     const payload = {
       ...form,
+      featured: form.placement === 'cover',
       publishedAt: form.publishedAt || undefined,
       readTime: form.readTime || undefined,
     };
     try {
       if (editing === 'new') {
         await createBlog(payload);
-        setNotice('Blog published to the top of the client journal.');
+        setNotice(`Blog added to ${sectionLabel(form.placement)}.`);
       } else {
         await updateBlog(editing, payload);
         setNotice('Blog updated.');
@@ -163,21 +198,62 @@ export default function BlogListing() {
     }
   };
 
-  const act = async (id, action) => {
-    setBusy(id + action);
+  const moveTo = async (id, placement) => {
+    setBusy(id + placement);
     setError('');
     setNotice('');
     try {
-      if (action === 'delete') {
-        if (!window.confirm('Delete this blog post? It will disappear from the public site.')) return;
-        await deleteBlog(id);
-        setNotice('Blog deleted.');
-        if (editing === id) closeForm();
-        await load();
-      } else if (action === 'up' || action === 'down') {
-        const items = await reorderBlog(id, action);
-        setBlogs(items);
-      }
+      const items = await placeBlog(id, placement);
+      setBlogs(items);
+      setNotice(`Moved to ${sectionLabel(placement)}.`);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const runDelete = async () => {
+    if (!confirm) return;
+    const blog = confirm;
+    setBusy(blog.id + 'delete');
+    setError('');
+    setNotice('');
+    try {
+      await deleteBlog(blog.id);
+      setNotice('Blog marked deleted. It stays in the database.');
+      setConfirm(null);
+      if (editing === blog.id) closeForm();
+      await load();
+    } catch (err) {
+      setError(err.message);
+      setConfirm(null);
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const restore = async (blog) => {
+    setBusy(blog.id + 'restore');
+    setError('');
+    setNotice('');
+    try {
+      await updateBlog(blog.id, { status: 'active', published: true, placement: 'index' });
+      setNotice('Blog restored to The index. Move it if you want it in Cover story or Field notes.');
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const shift = async (id, direction) => {
+    setBusy(id + direction);
+    setError('');
+    try {
+      const items = await reorderBlog(id, direction);
+      setBlogs(items);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -190,22 +266,18 @@ export default function BlogListing() {
       <div className="bg-white rounded-xl3 p-5 md:p-6 shadow-card border border-myland-mist/80">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <p className="text-sm text-myland-slate max-w-2xl">
-            New posts go to the top of the public Blog page. Mark one as the cover story, then edit
-            copy, image, layout, and order for the rest of the journal.
+            These three sections match the public Blog page: Cover story (hero), Field notes (two
+            large cards), and The index (the numbered list). Move a post between sections, edit it,
+            or mark it deleted — the row stays in the database.
           </p>
-          {editing == null && (
+          {editing == null && filter !== 'deleted' && (
             <button type="button" onClick={openNew} className="btn-primary !py-2.5 !px-4 !text-xs shrink-0">
               <HiOutlinePlus className="text-base" /> Add blog
             </button>
           )}
         </div>
         <div className="flex flex-wrap gap-2 mt-5">
-          {[
-            { id: 'all', label: 'All' },
-            { id: 'published', label: 'Published' },
-            { id: 'drafts', label: 'Drafts' },
-            { id: 'featured', label: 'Cover story' },
-          ].map((item) => (
+          {SECTIONS.map((item) => (
             <button
               key={item.id}
               type="button"
@@ -219,7 +291,21 @@ export default function BlogListing() {
               {item.label} ({counts[item.id]})
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => setFilter('deleted')}
+            className={`rounded-full px-4 py-2 text-xs font-display font-semibold transition-colors ${
+              filter === 'deleted'
+                ? 'bg-myland-red text-white'
+                : 'bg-myland-cream text-myland-slate hover:text-myland-ink'
+            }`}
+          >
+            Deleted ({counts.deleted})
+          </button>
         </div>
+        {currentSection && (
+          <p className="text-xs text-myland-slate mt-4">{currentSection.hint}</p>
+        )}
       </div>
 
       {error && <p className="text-myland-red text-sm">{error}</p>}
@@ -236,8 +322,7 @@ export default function BlogListing() {
                 {editing === 'new' ? 'Add blog' : 'Edit blog'}
               </h2>
               <p className="text-sm text-myland-slate mt-1">
-                Title, excerpt, and body appear on the client journal. Layout controls the large
-                field-note cards.
+                Choose which section of the public Blog page this post belongs to.
               </p>
             </div>
             <button
@@ -248,6 +333,26 @@ export default function BlogListing() {
             >
               <HiX />
             </button>
+          </div>
+
+          <div>
+            <p className="text-xs font-display font-semibold text-myland-ink mb-2">Blog section</p>
+            <div className="flex flex-wrap gap-2">
+              {SECTIONS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setField('placement', item.id)}
+                  className={`rounded-full px-4 py-2 text-xs font-display font-semibold ${
+                    form.placement === item.id
+                      ? 'bg-myland-ink text-white'
+                      : 'bg-myland-cream text-myland-slate'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -369,24 +474,14 @@ export default function BlogListing() {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-4">
-            <label className="inline-flex items-center gap-2 text-sm text-myland-ink">
-              <input
-                type="checkbox"
-                checked={form.featured}
-                onChange={(e) => setField('featured', e.target.checked)}
-              />
-              Cover story (top of client blog)
-            </label>
-            <label className="inline-flex items-center gap-2 text-sm text-myland-ink">
-              <input
-                type="checkbox"
-                checked={form.published}
-                onChange={(e) => setField('published', e.target.checked)}
-              />
-              Published on the public site
-            </label>
-          </div>
+          <label className="inline-flex items-center gap-2 text-sm text-myland-ink">
+            <input
+              type="checkbox"
+              checked={form.published}
+              onChange={(e) => setField('published', e.target.checked)}
+            />
+            Published on the public site
+          </label>
 
           <div className="flex flex-wrap gap-2">
             <button type="submit" disabled={busy === 'save'} className="btn-primary !py-2.5 !px-5 !text-xs">
@@ -411,17 +506,21 @@ export default function BlogListing() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2 mb-2">
-                  {blog.featured && (
+                  {blog.placement === 'cover' && blog.status !== 'deleted' && (
                     <span className="inline-flex items-center gap-1 text-[10px] font-display font-semibold uppercase tracking-wide rounded-full px-2.5 py-1 bg-myland-gold/15 text-myland-gold">
-                      <HiStar /> Cover
+                      <HiStar /> Cover story
                     </span>
                   )}
                   <span
                     className={`text-[10px] font-display font-semibold uppercase tracking-wide rounded-full px-2.5 py-1 ${
-                      blog.published ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                      blog.status === 'deleted'
+                        ? 'bg-myland-mist text-myland-slate'
+                        : blog.published
+                          ? 'bg-emerald-50 text-emerald-700'
+                          : 'bg-amber-50 text-amber-700'
                     }`}
                   >
-                    {blog.published ? 'Published' : 'Draft'}
+                    {blog.status === 'deleted' ? 'Deleted' : blog.published ? 'Published' : 'Draft'}
                   </span>
                   <span className="text-[10px] font-display font-semibold uppercase tracking-wide text-myland-red">
                     {blog.topic}
@@ -431,41 +530,66 @@ export default function BlogListing() {
                 <h2 className="font-display font-semibold text-myland-ink">{blog.title}</h2>
                 <p className="text-sm text-myland-slate mt-1 line-clamp-2">{blog.excerpt}</p>
                 <p className="text-xs text-myland-slate mt-2">
-                  Layout: {blog.layout} · {blog.readTime} · /blog/{blog.slug}
+                  {sectionLabel(blog.placement)} · {blog.readTime} · /blog/{blog.slug}
                 </p>
               </div>
               <div className="flex md:flex-col flex-wrap gap-2 shrink-0">
-                <button
-                  type="button"
-                  disabled={filter !== 'all' || busy.startsWith(blog.id) || index === 0}
-                  onClick={() => act(blog.id, 'up')}
-                  className="inline-flex items-center justify-center gap-2 rounded-full border border-myland-mist bg-white text-myland-ink font-display font-semibold text-xs px-3 py-2 hover:border-myland-ink/30 disabled:opacity-40"
-                >
-                  <HiArrowUp /> Up
-                </button>
-                <button
-                  type="button"
-                  disabled={filter !== 'all' || busy.startsWith(blog.id) || index === visible.length - 1}
-                  onClick={() => act(blog.id, 'down')}
-                  className="inline-flex items-center justify-center gap-2 rounded-full border border-myland-mist bg-white text-myland-ink font-display font-semibold text-xs px-3 py-2 hover:border-myland-ink/30 disabled:opacity-40"
-                >
-                  <HiArrowDown /> Down
-                </button>
-                <button
-                  type="button"
-                  onClick={() => openEdit(blog)}
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-myland-ink text-white font-display font-semibold text-xs px-3 py-2"
-                >
-                  <HiOutlinePencil /> Edit
-                </button>
-                <button
-                  type="button"
-                  disabled={busy.startsWith(blog.id)}
-                  onClick={() => act(blog.id, 'delete')}
-                  className="inline-flex items-center justify-center gap-2 rounded-full border border-myland-mist bg-white text-myland-red font-display font-semibold text-xs px-3 py-2 hover:border-myland-red disabled:opacity-50"
-                >
-                  <HiOutlineTrash /> Delete
-                </button>
+                {blog.status !== 'deleted' && (
+                  <>
+                    <button
+                      type="button"
+                      disabled={busy.startsWith(blog.id) || index === 0}
+                      onClick={() => shift(blog.id, 'up')}
+                      className="inline-flex items-center justify-center gap-2 rounded-full border border-myland-mist bg-white text-myland-ink font-display font-semibold text-xs px-3 py-2 hover:border-myland-ink/30 disabled:opacity-40"
+                    >
+                      <HiArrowUp /> Up
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy.startsWith(blog.id) || index === visible.length - 1}
+                      onClick={() => shift(blog.id, 'down')}
+                      className="inline-flex items-center justify-center gap-2 rounded-full border border-myland-mist bg-white text-myland-ink font-display font-semibold text-xs px-3 py-2 hover:border-myland-ink/30 disabled:opacity-40"
+                    >
+                      <HiArrowDown /> Down
+                    </button>
+                    {SECTIONS.filter((item) => item.id !== blog.placement).map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        disabled={busy.startsWith(blog.id)}
+                        onClick={() => moveTo(blog.id, item.id)}
+                        className="inline-flex items-center justify-center rounded-full border border-myland-mist bg-white text-myland-ink font-display font-semibold text-xs px-3 py-2 hover:border-myland-ink/30 disabled:opacity-50"
+                      >
+                        Move to {item.label}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => openEdit(blog)}
+                      className="inline-flex items-center justify-center gap-2 rounded-full bg-myland-ink text-white font-display font-semibold text-xs px-3 py-2"
+                    >
+                      <HiOutlinePencil /> Edit
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy.startsWith(blog.id)}
+                      onClick={() => setConfirm(blog)}
+                      className="inline-flex items-center justify-center gap-2 rounded-full border border-myland-mist bg-white text-myland-red font-display font-semibold text-xs px-3 py-2 hover:border-myland-red disabled:opacity-50"
+                    >
+                      <HiOutlineTrash /> Delete
+                    </button>
+                  </>
+                )}
+                {blog.status === 'deleted' && (
+                  <button
+                    type="button"
+                    disabled={busy.startsWith(blog.id)}
+                    onClick={() => restore(blog)}
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-600 text-white font-display font-semibold text-xs px-3 py-2 disabled:opacity-50"
+                  >
+                    Restore
+                  </button>
+                )}
               </div>
             </div>
           </li>
@@ -476,7 +600,67 @@ export default function BlogListing() {
         <div className="bg-white rounded-xl3 p-10 text-center shadow-card border border-myland-mist/80">
           <HiOutlineStar className="text-3xl text-myland-gold mx-auto mb-3" />
           <p className="font-display font-semibold text-myland-ink">No blogs in this view</p>
-          <p className="text-sm text-myland-slate mt-2">Add a post to show it on the public Blog page.</p>
+          <p className="text-sm text-myland-slate mt-2">
+            {filter === 'deleted'
+              ? 'Deleted posts stay in the database and appear here.'
+              : 'Add a post or move one into this section.'}
+          </p>
+        </div>
+      )}
+
+      {confirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-myland-ink/40"
+            aria-label="Cancel"
+            onClick={() => !busy.startsWith(confirm.id) && setConfirm(null)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="blog-delete-title"
+            className="relative w-full max-w-md bg-white rounded-xl3 p-6 shadow-card"
+          >
+            <button
+              type="button"
+              onClick={() => !busy.startsWith(confirm.id) && setConfirm(null)}
+              className="absolute top-4 right-4 w-8 h-8 rounded-full border border-myland-mist flex items-center justify-center text-myland-slate"
+              aria-label="Cancel"
+            >
+              <HiX />
+            </button>
+            <h3 id="blog-delete-title" className="font-display font-semibold text-lg text-myland-ink pr-8">
+              Delete this blog?
+            </h3>
+            <p className="text-sm text-myland-slate mt-2">
+              The row stays in the database with status deleted. It is hidden from the public Blog
+              page. You can still see it under Deleted.
+            </p>
+            <div className="mt-4 rounded-2xl bg-myland-cream px-4 py-3">
+              <p className="font-display font-semibold text-sm text-myland-ink">{confirm.title}</p>
+              <p className="text-xs text-myland-red mt-0.5">{sectionLabel(confirm.placement)}</p>
+              <p className="text-sm text-myland-slate mt-2 line-clamp-3">{confirm.excerpt}</p>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-5">
+              <button
+                type="button"
+                disabled={busy.startsWith(confirm.id)}
+                onClick={runDelete}
+                className="inline-flex items-center justify-center rounded-full bg-myland-red text-white font-display font-semibold text-xs px-5 py-2.5 hover:bg-myland-redDark disabled:opacity-50"
+              >
+                {busy.startsWith(confirm.id) ? 'Working…' : 'Yes, delete'}
+              </button>
+              <button
+                type="button"
+                disabled={busy.startsWith(confirm.id)}
+                onClick={() => setConfirm(null)}
+                className="btn-ghost !py-2.5 !px-5 !text-xs"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

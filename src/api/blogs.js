@@ -35,6 +35,16 @@ export async function deleteBlog(id) {
   await readError(res, 'Could not delete blog');
 }
 
+export async function placeBlog(id, placement) {
+  const res = await fetch(`/api/blogs/${id}/place`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ placement }),
+  });
+  const data = await readError(res, 'Could not move blog');
+  return data.blogs || [];
+}
+
 export async function reorderBlog(id, direction) {
   const res = await fetch(`/api/blogs/${id}/reorder`, {
     method: 'POST',
