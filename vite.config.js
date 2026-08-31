@@ -1,8 +1,9 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { dbHealthCheckPlugin } from '../vite-plugin-db-health.js';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), dbHealthCheckPlugin()],
   server: {
     port: 5174,
     strictPort: false,
