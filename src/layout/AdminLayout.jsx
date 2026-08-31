@@ -2,6 +2,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   HiOutlineHome,
   HiOutlineStar,
+  HiOutlineBookOpen,
   HiOutlineOfficeBuilding,
   HiOutlineUsers,
   HiOutlineChatAlt2,
@@ -12,6 +13,7 @@ import logo from '../assets/myland-logo.png';
 const NAV = [
   { to: '/', label: 'Dashboard', icon: HiOutlineHome, end: true },
   { to: '/reviews', label: 'Review Authorizer', icon: HiOutlineStar },
+  { to: '/blogs', label: 'Blog Listing', icon: HiOutlineBookOpen },
   { to: '/listings', label: 'Manage Listings', icon: HiOutlineOfficeBuilding },
   { to: '/users', label: 'User Management', icon: HiOutlineUsers },
   { to: '/inquiries', label: 'Inquiries', icon: HiOutlineChatAlt2 },
@@ -20,6 +22,7 @@ const NAV = [
 const TITLES = {
   '/': 'Dashboard',
   '/reviews': 'Review Authorizer',
+  '/blogs': 'Blog Listing',
   '/listings': 'Manage Listings',
   '/users': 'User Management',
   '/inquiries': 'Inquiries',

@@ -1,78 +1,52 @@
 {
   "reviews": [
     {
-      "id": "rev-mt6tdxdz-ujrhbp",
-      "projectSlug": "field-breeze-divulapitiya",
-      "projectTitle": "Field Breeze – Divulapitiya",
-      "name": "Tharindu Silva",
-      "message": "The site visit was well organised and the land is ready to build. Happy to recommend Field Breeze.",
-      "rating": 5,
-      "status": "approved",
-      "createdAt": "2026-08-24T05:47:33.575Z",
-      "moderatedAt": "2026-08-24T05:48:11.772Z"
-    },
-    {
-      "id": "rev-001",
-      "projectSlug": "field-breeze-divulapitiya",
-      "projectTitle": "Field Breeze – Divulapitiya",
-      "name": "Saman Jayawardena",
-      "message": "Visited the site last weekend. Road access is excellent and the paddy-field view is exactly as advertised. Would like confirmation on the reservation process.",
-      "rating": 5,
-      "status": "pending",
-      "createdAt": "2026-08-22T09:15:00.000Z"
-    },
-    {
-      "id": "rev-002",
-      "projectSlug": "field-breeze-divulapitiya",
-      "projectTitle": "Field Breeze – Divulapitiya",
+      "id": "rev-home-nadeesha",
+      "projectSlug": "client-stories",
+      "projectTitle": "Client Stories",
       "name": "Nadeesha Perera",
-      "message": "Clear deeds and the sales team explained bank-loan options well. Waiting on a second site visit before we decide.",
-      "rating": 4,
-      "status": "pending",
-      "createdAt": "2026-08-21T14:40:00.000Z"
+      "role": "Homeowner, Malabe",
+      "message": "MyLand made an overwhelming process feel simple — every document was explained before we signed anything.",
+      "rating": 5,
+      "status": "approved",
+      "showOnHome": true,
+      "avatar": "https://i.pravatar.cc/100?img=32",
+      "createdAt": "2026-07-12T08:00:00.000Z",
+      "moderatedAt": "2026-07-12T09:00:00.000Z",
+      "authorizerId": "admin-kavithra",
+      "authorizerName": "Kavithra"
     },
     {
-      "id": "rev-003",
-      "projectSlug": "field-breeze-divulapitiya",
-      "projectTitle": "Field Breeze – Divulapitiya",
+      "id": "rev-home-ruwan",
+      "projectSlug": "client-stories",
+      "projectTitle": "Client Stories",
       "name": "Ruwan Fernando",
-      "message": "Plot sizes matched the brochure and three-phase electricity is already on site. Smooth visit overall.",
+      "role": "Investor, Kandy",
+      "message": "I compared four agencies before choosing MyLand. Their site visit and follow-through were the most transparent by far.",
       "rating": 5,
       "status": "approved",
-      "createdAt": "2026-08-18T11:05:00.000Z",
-      "moderatedAt": "2026-08-19T08:22:00.000Z"
+      "showOnHome": true,
+      "avatar": "https://i.pravatar.cc/100?img=12",
+      "createdAt": "2026-07-18T08:00:00.000Z",
+      "moderatedAt": "2026-07-18T09:00:00.000Z",
+      "authorizerId": "admin-kavithra",
+      "authorizerName": "Kavithra"
     },
     {
-      "id": "rev-004",
-      "projectSlug": "highway-drive-mirigama",
-      "projectTitle": "Highway Drive – Mirigama",
-      "name": "Ishara Silva",
-      "message": "Location is convenient but the access road was muddy after rain. Sharing so the team can follow up.",
-      "rating": 3,
-      "status": "pending",
-      "createdAt": "2026-08-20T16:12:00.000Z"
-    },
-    {
-      "id": "rev-005",
-      "projectSlug": "arunalu-biyagama",
-      "projectTitle": "Arunalu – Biyagama",
-      "name": "Chamari Wickramasinghe",
-      "message": "This review looks promotional and does not describe a real visit.",
-      "rating": 5,
-      "status": "rejected",
-      "createdAt": "2026-08-12T07:50:00.000Z",
-      "moderatedAt": "2026-08-13T10:01:00.000Z"
-    },
-    {
-      "id": "rev-006",
-      "projectSlug": "field-breeze-divulapitiya",
-      "projectTitle": "Field Breeze – Divulapitiya",
-      "name": "Kasun Bandara",
-      "message": "Family-friendly neighbourhood and close to Divulapitiya town. We reserved a 10 perch plot.",
+      "id": "rev-home-ishara",
+      "projectSlug": "client-stories",
+      "projectTitle": "Client Stories",
+      "name": "Ishara Gunawardena",
+      "role": "First-time buyer, Galle",
+      "message": "The team answered every question over WhatsApp within minutes, even on weekends. That responsiveness sold me.",
       "rating": 5,
       "status": "approved",
-      "createdAt": "2026-08-10T13:28:00.000Z",
-      "moderatedAt": "2026-08-11T09:14:00.000Z"
+      "showOnHome": true,
+      "avatar": "https://i.pravatar.cc/100?img=45",
+      "createdAt": "2026-07-22T08:00:00.000Z",
+      "moderatedAt": "2026-07-22T09:00:00.000Z",
+      "authorizerId": "admin-kavithra",
+      "authorizerName": "Kavithra"
     }
   ]
 }

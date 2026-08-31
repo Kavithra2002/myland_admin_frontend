@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   HiOutlineStar,
+  HiOutlineBookOpen,
   HiOutlineOfficeBuilding,
   HiOutlineUsers,
   HiOutlineChatAlt2,
   HiArrowRight,
 } from 'react-icons/hi';
 import { fetchReviews } from '../api/reviews.js';
+import { fetchBlogs } from '../api/blogs.js';
 import StarRating from '../components/StarRating.jsx';
 
 const SAMPLE_STATS = [
@@ -18,17 +20,22 @@ const SAMPLE_STATS = [
 
 export default function Dashboard() {
   const [reviews, setReviews] = useState([]);
+  const [blogs, setBlogs] = useState([]);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    fetchReviews()
-      .then(setReviews)
+    Promise.all([fetchReviews(), fetchBlogs()])
+      .then(([nextReviews, nextBlogs]) => {
+        setReviews(nextReviews);
+        setBlogs(nextBlogs);
+      })
       .catch((err) => setError(err.message));
   }, []);
 
   const pending = reviews.filter((item) => item.status === 'pending').length;
   const approved = reviews.filter((item) => item.status === 'approved').length;
   const recent = reviews.slice(0, 4);
+  const publishedBlogs = blogs.filter((item) => item.published).length;
 
   return (
     <div className="space-y-8">
@@ -48,7 +55,22 @@ export default function Dashboard() {
           <p className="font-display font-bold text-3xl text-myland-ink">{pending}</p>
           <p className="text-sm text-myland-slate mt-1">Pending reviews</p>
         </Link>
-        {SAMPLE_STATS.map((stat) => {
+        <Link
+          to="/blogs"
+          className="bg-white rounded-xl3 p-5 shadow-card border border-myland-mist/80 hover:border-myland-red/40 transition-colors"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <span className="w-10 h-10 rounded-full bg-myland-cream text-myland-ink flex items-center justify-center">
+              <HiOutlineBookOpen className="text-lg" />
+            </span>
+            <span className="text-[11px] font-display font-semibold uppercase tracking-wide text-myland-slate">
+              Journal
+            </span>
+          </div>
+          <p className="font-display font-bold text-3xl text-myland-ink">{publishedBlogs}</p>
+          <p className="text-sm text-myland-slate mt-1">Published blogs</p>
+        </Link>
+        {SAMPLE_STATS.slice(0, 2).map((stat) => {
           const Icon = stat.icon;
           return (
             <div key={stat.label} className="bg-white rounded-xl3 p-5 shadow-card border border-myland-mist/80">
@@ -103,6 +125,7 @@ function StatusBadge({ status }) {
     pending: 'bg-amber-50 text-amber-700',
     approved: 'bg-emerald-50 text-emerald-700',
     rejected: 'bg-myland-red/10 text-myland-red',
+    deleted: 'bg-myland-mist text-myland-slate',
   };
   return (
     <span className={`text-[10px] font-display font-semibold uppercase tracking-wide rounded-full px-2.5 py-1 ${styles[status]}`}>
