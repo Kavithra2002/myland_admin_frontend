@@ -1,14 +1,15 @@
 import { CURRENT_ADMIN } from './session.js';
+import { apiUrl } from './http.js';
 
 export async function fetchReviews() {
-  const res = await fetch('/api/reviews');
+  const res = await fetch(apiUrl('/api/reviews'));
   if (!res.ok) throw new Error('Could not load reviews');
   const data = await res.json();
   return data.reviews || [];
 }
 
 export async function setReviewStatus(id, status) {
-  const res = await fetch(`/api/reviews/${id}`, {
+  const res = await fetch(apiUrl(`/api/reviews/${id}`), {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
