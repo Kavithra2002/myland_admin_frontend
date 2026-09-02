@@ -1,0 +1,12 @@
+{
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/.git/HEAD": true,
+    "**/.git/*.lock": true,
+    "**/.git/index": true,
+    "**/.git/refs/**": true,
+    "**/.git/logs/**": true,
+    "**/.git/packed-refs": true
+  }
+}
