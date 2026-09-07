@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { HiCheck, HiX, HiOutlineTrash } from 'react-icons/hi';
 import { deleteReview, fetchReviews, setReviewStatus } from '../api/reviews.js';
 import StarRating from '../components/StarRating.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const FILTERS = [
   { id: 'pending', label: 'Pending' },
@@ -36,6 +37,7 @@ const ACTION_COPY = {
 };
 
 export default function ReviewAuthorizer() {
+  const { isAdmin } = useAuth();
   const [reviews, setReviews] = useState([]);
   const [filter, setFilter] = useState('pending');
   const [error, setError] = useState('');
@@ -107,9 +109,9 @@ export default function ReviewAuthorizer() {
     <div className="space-y-6">
       <div className="bg-white rounded-xl3 p-5 md:p-6 shadow-card border border-myland-mist/80">
         <p className="text-sm text-myland-slate max-w-2xl">
-          Reviews submitted on project pages stay hidden on the public site until you approve them.
-          Rejected and deleted reviews stay in the database for the record; deleted items are hidden
-          from the public site.
+          {isAdmin
+            ? 'Reviews submitted on project pages stay hidden on the public site until you approve them. Rejected and deleted reviews stay in the database for the record; deleted items are hidden from the public site.'
+            : 'You can review submitted feedback here. An admin must approve or reject updates before they appear on the public site.'}
         </p>
         <div className="flex flex-wrap gap-2 mt-5">
           {FILTERS.map((item) => (
@@ -169,6 +171,7 @@ export default function ReviewAuthorizer() {
                   )}
                 </dl>
               </div>
+              {isAdmin && (
               <div className="flex flex-wrap lg:flex-col gap-2 shrink-0">
                 {review.status !== 'approved' && (
                   <button
@@ -201,6 +204,7 @@ export default function ReviewAuthorizer() {
                   </button>
                 )}
               </div>
+              )}
             </div>
           </li>
         ))}

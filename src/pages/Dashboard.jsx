@@ -10,32 +10,39 @@ import {
 } from 'react-icons/hi';
 import { fetchReviews } from '../api/reviews.js';
 import { fetchBlogs } from '../api/blogs.js';
+import { fetchUsers } from '../api/users.js';
 import StarRating from '../components/StarRating.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const SAMPLE_STATS = [
   { label: 'Active listings', value: '10', icon: HiOutlineOfficeBuilding },
-  { label: 'Staff users', value: '6', icon: HiOutlineUsers },
   { label: 'Open inquiries', value: '4', icon: HiOutlineChatAlt2 },
 ];
 
 export default function Dashboard() {
+  const { isAdmin } = useAuth();
   const [reviews, setReviews] = useState([]);
   const [blogs, setBlogs] = useState([]);
+  const [staffCount, setStaffCount] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    Promise.all([fetchReviews(), fetchBlogs()])
-      .then(([nextReviews, nextBlogs]) => {
+    const jobs = [fetchReviews(), fetchBlogs()];
+    if (isAdmin) jobs.push(fetchUsers('active'));
+    Promise.all(jobs)
+      .then(([nextReviews, nextBlogs, nextUsers]) => {
         setReviews(nextReviews);
         setBlogs(nextBlogs);
+        if (Array.isArray(nextUsers)) setStaffCount(nextUsers.length);
       })
       .catch((err) => setError(err.message));
-  }, []);
+  }, [isAdmin]);
 
   const pending = reviews.filter((item) => item.status === 'pending').length;
   const approved = reviews.filter((item) => item.status === 'approved').length;
   const recent = reviews.slice(0, 4);
-  const publishedBlogs = blogs.filter((item) => item.published).length;
+  const pendingBlogs = blogs.filter((item) => item.status !== 'deleted' && !item.published).length;
+  const publishedBlogs = blogs.filter((item) => item.published && item.status !== 'deleted').length;
 
   return (
     <div className="space-y-8">
@@ -68,9 +75,23 @@ export default function Dashboard() {
             </span>
           </div>
           <p className="font-display font-bold text-3xl text-myland-ink">{publishedBlogs}</p>
-          <p className="text-sm text-myland-slate mt-1">Published blogs</p>
+          <p className="text-sm text-myland-slate mt-1">
+            Published blogs{pendingBlogs ? ` · ${pendingBlogs} pending` : ''}
+          </p>
         </Link>
-        {SAMPLE_STATS.slice(0, 2).map((stat) => {
+        {isAdmin && (
+          <Link
+            to="/users"
+            className="bg-white rounded-xl3 p-5 shadow-card border border-myland-mist/80 hover:border-myland-red/40 transition-colors"
+          >
+            <span className="w-10 h-10 rounded-full bg-myland-cream text-myland-ink flex items-center justify-center mb-4">
+              <HiOutlineUsers className="text-lg" />
+            </span>
+            <p className="font-display font-bold text-3xl text-myland-ink">{staffCount ?? '—'}</p>
+            <p className="text-sm text-myland-slate mt-1">Active staff users</p>
+          </Link>
+        )}
+        {SAMPLE_STATS.slice(0, isAdmin ? 1 : 2).map((stat) => {
           const Icon = stat.icon;
           return (
             <div key={stat.label} className="bg-white rounded-xl3 p-5 shadow-card border border-myland-mist/80">

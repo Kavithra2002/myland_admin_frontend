@@ -1,25 +1,17 @@
-import { CURRENT_ADMIN } from './session.js';
-import { apiUrl } from './http.js';
+import { apiFetch, readError } from './http.js';
 
 export async function fetchReviews() {
-  const res = await fetch(apiUrl('/api/reviews'));
-  if (!res.ok) throw new Error('Could not load reviews');
-  const data = await res.json();
+  const res = await apiFetch('/api/reviews');
+  const data = await readError(res, 'Could not load reviews');
   return data.reviews || [];
 }
 
 export async function setReviewStatus(id, status) {
-  const res = await fetch(apiUrl(`/api/reviews/${id}`), {
+  const res = await apiFetch(`/api/reviews/${id}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      status,
-      authorizerId: CURRENT_ADMIN.id,
-      authorizerName: CURRENT_ADMIN.name,
-    }),
+    body: JSON.stringify({ status }),
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.message || 'Could not update review');
+  const data = await readError(res, 'Could not update review');
   return data.review;
 }
 

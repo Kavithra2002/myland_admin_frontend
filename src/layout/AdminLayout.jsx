@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   HiOutlineHome,
   HiOutlineStar,
@@ -6,16 +6,17 @@ import {
   HiOutlineOfficeBuilding,
   HiOutlineUsers,
   HiOutlineChatAlt2,
-  HiOutlineBell,
+  HiOutlineLogout,
 } from 'react-icons/hi';
 import logo from '../assets/myland-logo.png';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const NAV = [
   { to: '/', label: 'Dashboard', icon: HiOutlineHome, end: true },
   { to: '/reviews', label: 'Review Authorizer', icon: HiOutlineStar },
   { to: '/blogs', label: 'Blog Listing', icon: HiOutlineBookOpen },
   { to: '/listings', label: 'Manage Listings', icon: HiOutlineOfficeBuilding },
-  { to: '/users', label: 'User Management', icon: HiOutlineUsers },
+  { to: '/users', label: 'User Management', icon: HiOutlineUsers, adminOnly: true },
   { to: '/inquiries', label: 'Inquiries', icon: HiOutlineChatAlt2 },
 ];
 
@@ -28,8 +29,19 @@ const TITLES = {
   '/inquiries': 'Inquiries',
 };
 
+function initials(name) {
+  const parts = String(name || '')
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2);
+  return parts.map((part) => part[0]).join('').toUpperCase() || 'ML';
+}
+
 export default function AdminLayout() {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const { user, isAdmin, logout } = useAuth();
+  const nav = NAV.filter((item) => !item.adminOnly || isAdmin);
 
   return (
     <div className="min-h-screen bg-myland-cream flex">
@@ -42,7 +54,7 @@ export default function AdminLayout() {
           </div>
         </div>
         <nav className="flex-1 px-3 py-4 space-y-1">
-          {NAV.map((item) => {
+          {nav.map((item) => {
             const Icon = item.icon;
             return (
               <NavLink
@@ -64,7 +76,7 @@ export default function AdminLayout() {
           })}
         </nav>
         <p className="px-6 py-4 text-[11px] text-myland-slate border-t border-myland-mist">
-          MyLand internal workspace
+          Signed in as {user?.role}
         </p>
       </aside>
 
@@ -80,23 +92,29 @@ export default function AdminLayout() {
               </h1>
             </div>
             <div className="flex items-center gap-3">
-              <button
-                type="button"
-                className="w-10 h-10 rounded-full border border-myland-mist bg-white flex items-center justify-center text-myland-ink"
-                aria-label="Notifications"
-              >
-                <HiOutlineBell />
-              </button>
               <div className="hidden sm:flex items-center gap-2 rounded-full border border-myland-mist bg-white pl-1 pr-3 py-1">
                 <span className="w-8 h-8 rounded-full bg-myland-red text-white text-xs font-display font-bold flex items-center justify-center">
-                  KA
+                  {initials(user?.name)}
                 </span>
-                <span className="text-sm font-display font-semibold text-myland-ink">Kavithra</span>
+                <span className="text-sm font-display font-semibold text-myland-ink">
+                  {user?.name}
+                </span>
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  logout();
+                  navigate('/login');
+                }}
+                className="w-10 h-10 rounded-full border border-myland-mist bg-white flex items-center justify-center text-myland-ink"
+                aria-label="Sign out"
+              >
+                <HiOutlineLogout />
+              </button>
             </div>
           </div>
           <nav className="md:hidden flex gap-1 overflow-x-auto px-4 pb-3 no-scrollbar">
-            {NAV.map((item) => (
+            {nav.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}

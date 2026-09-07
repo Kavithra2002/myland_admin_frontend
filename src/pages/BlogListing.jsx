@@ -17,6 +17,7 @@ import {
   reorderBlog,
   updateBlog,
 } from '../api/blogs.js';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const TOPICS = ['Site visits', 'Titles', 'Districts', 'Loans', 'Investment', 'Journal', 'Guides'];
 const LAYOUTS = [
@@ -113,11 +114,13 @@ const CONFIRM_BTN_INK =
 const CONFIRM_BTN_RED =
   'inline-flex items-center justify-center rounded-full bg-myland-red text-white font-display font-semibold text-xs px-5 py-2.5 hover:bg-myland-redDark disabled:opacity-50';
 
-function confirmCopy(confirm) {
+function confirmCopy(confirm, isAdmin) {
   if (confirm.type === 'add') {
     return {
       title: 'Add this blog?',
-      body: `It will be published in ${sectionLabel(confirm.blog.placement)} on the public Blog page.`,
+      body: isAdmin
+        ? `It will be published in ${sectionLabel(confirm.blog.placement)} on the public Blog page.`
+        : 'It will be saved as pending. An admin must approve it before it appears on the public Blog page.',
       action: 'Yes, add blog',
       actionClass: CONFIRM_BTN_INK,
     };
@@ -125,9 +128,20 @@ function confirmCopy(confirm) {
   if (confirm.type === 'save') {
     return {
       title: 'Save these changes?',
-      body: 'The public Blog page will show the updated post.',
+      body: isAdmin
+        ? 'The public Blog page will show the updated post.'
+        : 'The post will wait for admin approval before the public Blog page updates.',
       action: 'Yes, save changes',
       actionClass: CONFIRM_BTN_INK,
+    };
+  }
+  if (confirm.type === 'approve') {
+    return {
+      title: 'Approve this blog?',
+      body: 'It will appear on the public Blog page in its current section.',
+      action: 'Yes, approve',
+      actionClass:
+        'inline-flex items-center justify-center rounded-full bg-emerald-600 text-white font-display font-semibold text-xs px-5 py-2.5 hover:bg-emerald-700 disabled:opacity-50',
     };
   }
   if (confirm.type === 'shift') {
@@ -158,12 +172,14 @@ function confirmCopy(confirm) {
 function confirmBusyKey(confirm) {
   if (!confirm) return '';
   if (confirm.type === 'add' || confirm.type === 'save') return 'save';
+  if (confirm.type === 'approve') return confirm.blog.id + 'approve';
   if (confirm.type === 'shift') return confirm.blog.id + confirm.direction;
   if (confirm.type === 'move') return confirm.blog.id + confirm.placement;
   return confirm.blog.id + confirm.type;
 }
 
 export default function BlogListing() {
+  const { isAdmin } = useAuth();
   const [blogs, setBlogs] = useState([]);
   const [filter, setFilter] = useState('cover');
   const [editing, setEditing] = useState(null);
@@ -192,6 +208,9 @@ export default function BlogListing() {
 
   const visible = useMemo(() => {
     if (filter === 'deleted') return deleted;
+    if (filter === 'pending') {
+      return active.filter((item) => item.published === false);
+    }
     return active.filter((item) => (item.placement || 'index') === filter);
   }, [active, deleted, filter]);
 
@@ -200,6 +219,7 @@ export default function BlogListing() {
       cover: active.filter((item) => item.placement === 'cover').length,
       features: active.filter((item) => item.placement === 'features').length,
       index: active.filter((item) => item.placement === 'index').length,
+      pending: active.filter((item) => item.published === false).length,
       deleted: deleted.length,
     }),
     [active, deleted]
@@ -208,7 +228,7 @@ export default function BlogListing() {
   const currentSection = SECTIONS.find((item) => item.id === filter);
 
   const openNew = () => {
-    const placement = filter === 'deleted' ? 'index' : filter;
+    const placement = SECTIONS.some((item) => item.id === filter) ? filter : 'index';
     setEditing('new');
     setForm({ ...EMPTY_FORM, placement });
     setSlugTouched(false);
@@ -260,20 +280,25 @@ export default function BlogListing() {
       featured: form.placement === 'cover',
       publishedAt: form.publishedAt || undefined,
       readTime: form.readTime || undefined,
+      published: isAdmin ? form.published : false,
     };
     if (editing === 'new') {
       await createBlog(payload);
-      setNotice(`Blog added to ${sectionLabel(form.placement)}.`);
+      setNotice(
+        isAdmin
+          ? `Blog added to ${sectionLabel(form.placement)}.`
+          : 'Blog saved as pending. An admin must approve it before it goes live.'
+      );
     } else {
       await updateBlog(editing, payload);
-      setNotice('Blog updated.');
+      setNotice(isAdmin ? 'Blog updated.' : 'Changes saved. Waiting for admin approval.');
     }
     await load();
     closeForm();
   };
 
   const confirmBusy = Boolean(confirm && busy === confirmBusyKey(confirm));
-  const copy = confirm ? confirmCopy(confirm) : null;
+  const copy = confirm ? confirmCopy(confirm, isAdmin) : null;
 
   const closeConfirm = () => {
     if (confirmBusy) return;
@@ -289,6 +314,10 @@ export default function BlogListing() {
     try {
       if (type === 'add' || type === 'save') {
         await persistForm();
+      } else if (type === 'approve') {
+        await updateBlog(blog.id, { published: true });
+        setNotice('Blog approved and published.');
+        await load();
       } else if (type === 'move') {
         const items = await placeBlog(blog.id, placement);
         setBlogs(items);
@@ -333,8 +362,8 @@ export default function BlogListing() {
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <p className="text-sm text-myland-slate max-w-2xl">
             These three sections match the public Blog page: Cover story (hero), Field notes (two
-            large cards), and The index (the numbered list). Move a post between sections, edit it,
-            or mark it deleted — the row stays in the database.
+            large cards), and The index (the numbered list). Staff can update posts; an admin
+            must approve them before they appear on the public site.
           </p>
           {editing == null && filter !== 'deleted' && (
             <button type="button" onClick={openNew} className="btn-primary !py-2.5 !px-4 !text-xs shrink-0">
@@ -357,6 +386,17 @@ export default function BlogListing() {
               {item.label} ({counts[item.id]})
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => setFilter('pending')}
+            className={`rounded-full px-4 py-2 text-xs font-display font-semibold transition-colors ${
+              filter === 'pending'
+                ? 'bg-myland-red text-white'
+                : 'bg-myland-cream text-myland-slate hover:text-myland-ink'
+            }`}
+          >
+            Pending approval ({counts.pending})
+          </button>
           <button
             type="button"
             onClick={() => setFilter('deleted')}
@@ -560,14 +600,20 @@ export default function BlogListing() {
             </div>
           </div>
 
-          <label className="inline-flex items-center gap-2 text-sm text-myland-ink">
-            <input
-              type="checkbox"
-              checked={form.published}
-              onChange={(e) => setField('published', e.target.checked)}
-            />
-            Published on the public site
-          </label>
+          {isAdmin ? (
+            <label className="inline-flex items-center gap-2 text-sm text-myland-ink">
+              <input
+                type="checkbox"
+                checked={form.published}
+                onChange={(e) => setField('published', e.target.checked)}
+              />
+              Published on the public site
+            </label>
+          ) : (
+            <p className="text-sm text-myland-slate">
+              This post stays pending until an admin approves it.
+            </p>
+          )}
 
           <div className="flex flex-wrap gap-2">
             <button type="submit" disabled={busy === 'save'} className="btn-primary !py-2.5 !px-5 !text-xs">
@@ -606,7 +652,7 @@ export default function BlogListing() {
                           : 'bg-amber-50 text-amber-700'
                     }`}
                   >
-                    {blog.status === 'deleted' ? 'Deleted' : blog.published ? 'Published' : 'Draft'}
+                    {blog.status === 'deleted' ? 'Deleted' : blog.published ? 'Published' : 'Pending'}
                   </span>
                   <span className="text-[10px] font-display font-semibold uppercase tracking-wide text-myland-red">
                     {blog.topic}
@@ -656,6 +702,16 @@ export default function BlogListing() {
                     >
                       <HiOutlinePencil /> Edit
                     </button>
+                    {isAdmin && !blog.published && (
+                      <button
+                        type="button"
+                        disabled={busy.startsWith(blog.id)}
+                        onClick={() => setConfirm({ type: 'approve', blog })}
+                        className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-600 text-white font-display font-semibold text-xs px-3 py-2 hover:bg-emerald-700 disabled:opacity-50"
+                      >
+                        <HiStar /> Approve
+                      </button>
+                    )}
                     <button
                       type="button"
                       disabled={busy.startsWith(blog.id)}
