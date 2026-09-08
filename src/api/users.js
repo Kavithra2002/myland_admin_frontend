@@ -30,3 +30,9 @@ export async function deleteUser(id) {
   const data = await readError(res, 'Could not delete user');
   return data.user;
 }
+
+export async function fetchAdmins() {
+  const res = await apiFetch('/api/admins');
+  const data = await readError(res, 'Could not load admins');
+  return data.admins || [];
+}

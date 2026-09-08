@@ -41,7 +41,7 @@ export default function Dashboard() {
   const pending = reviews.filter((item) => item.status === 'pending').length;
   const approved = reviews.filter((item) => item.status === 'approved').length;
   const recent = reviews.slice(0, 4);
-  const pendingBlogs = blogs.filter((item) => item.status !== 'deleted' && !item.published).length;
+  const pendingBlogs = blogs.filter((item) => item.approvalStatus === 'pending').length;
   const publishedBlogs = blogs.filter((item) => item.published && item.status !== 'deleted').length;
 
   return (

@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  HiArrowDown,
-  HiArrowUp,
   HiOutlinePencil,
   HiOutlinePlus,
   HiOutlineStar,
@@ -15,8 +13,11 @@ import {
   fetchBlogs,
   placeBlog,
   reorderBlog,
+  reviewBlog,
+  submitBlogChange,
   updateBlog,
 } from '../api/blogs.js';
+import { fetchAdmins } from '../api/users.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
 const TOPICS = ['Site visits', 'Titles', 'Districts', 'Loans', 'Investment', 'Journal', 'Guides'];
@@ -61,6 +62,13 @@ const EMPTY_FORM = {
 const inputClass =
   'w-full bg-myland-cream border border-transparent rounded-xl px-4 py-3 text-sm text-myland-ink placeholder:text-myland-slate/50 outline-none focus:bg-white focus:border-myland-gold/50';
 
+const CONFIRM_BTN_INK =
+  'inline-flex items-center justify-center rounded-full bg-myland-ink text-white font-display font-semibold text-xs px-5 py-2.5 disabled:opacity-50';
+const CONFIRM_BTN_RED =
+  'inline-flex items-center justify-center rounded-full bg-myland-red text-white font-display font-semibold text-xs px-5 py-2.5 hover:bg-myland-redDark disabled:opacity-50';
+const CONFIRM_BTN_GREEN =
+  'inline-flex items-center justify-center rounded-full bg-emerald-600 text-white font-display font-semibold text-xs px-5 py-2.5 hover:bg-emerald-700 disabled:opacity-50';
+
 function slugify(value) {
   return String(value || '')
     .toLowerCase()
@@ -77,18 +85,24 @@ function toDateInput(value) {
 }
 
 function formFromBlog(blog) {
+  const pending =
+    blog.pendingPayload &&
+    (blog.pendingAction === 'update' || blog.pendingAction === 'create')
+      ? blog.pendingPayload
+      : null;
+  const source = pending ? { ...blog, ...pending } : blog;
   return {
-    title: blog.title || '',
-    slug: blog.slug || '',
-    topic: blog.topic || 'Journal',
-    excerpt: blog.excerpt || '',
-    body: blog.body || '',
-    imageUrl: blog.imageUrl || blog.image || '',
-    readTime: blog.readTime || '',
-    layout: blog.layout || 'auto',
+    title: source.title || '',
+    slug: source.slug || '',
+    topic: source.topic || 'Journal',
+    excerpt: source.excerpt || '',
+    body: source.body || '',
+    imageUrl: source.imageUrl || source.image || '',
+    readTime: source.readTime || '',
+    layout: source.layout || 'auto',
     published: blog.published !== false,
-    publishedAt: toDateInput(blog.publishedAt),
-    placement: blog.placement || 'index',
+    publishedAt: toDateInput(source.publishedAt || blog.publishedAt),
+    placement: source.placement || blog.placement || 'index',
   };
 }
 
@@ -109,18 +123,50 @@ function moveHint(blog, placement) {
   return 'This post moves to The index (the numbered list at the bottom of the public Blog page).';
 }
 
-const CONFIRM_BTN_INK =
-  'inline-flex items-center justify-center rounded-full bg-myland-ink text-white font-display font-semibold text-xs px-5 py-2.5 disabled:opacity-50';
-const CONFIRM_BTN_RED =
-  'inline-flex items-center justify-center rounded-full bg-myland-red text-white font-display font-semibold text-xs px-5 py-2.5 hover:bg-myland-redDark disabled:opacity-50';
+function approvalBadge(blog) {
+  if (blog.status === 'deleted') return { label: 'Deleted', className: 'bg-myland-mist text-myland-slate' };
+  if (blog.approvalStatus === 'pending') return { label: 'Pending', className: 'bg-amber-50 text-amber-700' };
+  if (blog.approvalStatus === 'declined') return { label: 'Declined', className: 'bg-myland-red/10 text-myland-red' };
+  return { label: 'Approved', className: 'bg-emerald-50 text-emerald-700' };
+}
 
-function confirmCopy(confirm, isAdmin) {
+function pendingActionLabel(action) {
+  if (action === 'create') return 'New post';
+  if (action === 'delete') return 'Delete request';
+  if (action === 'move') return 'Move request';
+  if (action === 'update') return 'Update request';
+  return '';
+}
+
+function confirmCopy(confirm) {
+  if (confirm.type === 'submit') {
+    return {
+      title: confirm.action === 'create' ? 'Send this post for approval?' : 'Send these changes for approval?',
+      body: 'The public Blog page will not change until the selected admin approves it.',
+      action: 'Yes, send to approval',
+      actionClass: CONFIRM_BTN_INK,
+    };
+  }
+  if (confirm.type === 'submit-delete') {
+    return {
+      title: 'Send this delete for approval?',
+      body: 'The live post stays on the public site until an admin approves the deletion.',
+      action: 'Yes, send delete request',
+      actionClass: CONFIRM_BTN_RED,
+    };
+  }
+  if (confirm.type === 'submit-move') {
+    return {
+      title: `Send move to ${sectionLabel(confirm.placement)}?`,
+      body: `${moveHint(confirm.blog, confirm.placement)} This stays pending until an admin approves it.`,
+      action: 'Yes, send move request',
+      actionClass: CONFIRM_BTN_INK,
+    };
+  }
   if (confirm.type === 'add') {
     return {
       title: 'Add this blog?',
-      body: isAdmin
-        ? `It will be published in ${sectionLabel(confirm.blog.placement)} on the public Blog page.`
-        : 'It will be saved as pending. An admin must approve it before it appears on the public Blog page.',
+      body: `It will be published in ${sectionLabel(confirm.blog.placement)} on the public Blog page.`,
       action: 'Yes, add blog',
       actionClass: CONFIRM_BTN_INK,
     };
@@ -128,20 +174,25 @@ function confirmCopy(confirm, isAdmin) {
   if (confirm.type === 'save') {
     return {
       title: 'Save these changes?',
-      body: isAdmin
-        ? 'The public Blog page will show the updated post.'
-        : 'The post will wait for admin approval before the public Blog page updates.',
+      body: 'The public Blog page will show the updated post.',
       action: 'Yes, save changes',
       actionClass: CONFIRM_BTN_INK,
     };
   }
   if (confirm.type === 'approve') {
     return {
-      title: 'Approve this blog?',
-      body: 'It will appear on the public Blog page in its current section.',
+      title: 'Approve this request?',
+      body: 'The requested change will go live on the public Blog page. You can add an optional note for the author.',
       action: 'Yes, approve',
-      actionClass:
-        'inline-flex items-center justify-center rounded-full bg-emerald-600 text-white font-display font-semibold text-xs px-5 py-2.5 hover:bg-emerald-700 disabled:opacity-50',
+      actionClass: CONFIRM_BTN_GREEN,
+    };
+  }
+  if (confirm.type === 'decline') {
+    return {
+      title: 'Decline this request?',
+      body: 'The public Blog page stays as it is. Add a message so the author knows what to fix.',
+      action: 'Yes, decline',
+      actionClass: CONFIRM_BTN_RED,
     };
   }
   if (confirm.type === 'shift') {
@@ -171,16 +222,23 @@ function confirmCopy(confirm, isAdmin) {
 
 function confirmBusyKey(confirm) {
   if (!confirm) return '';
-  if (confirm.type === 'add' || confirm.type === 'save') return 'save';
-  if (confirm.type === 'approve') return confirm.blog.id + 'approve';
+  if (confirm.type === 'add' || confirm.type === 'save' || confirm.type === 'submit') return 'save';
+  if (confirm.type === 'approve' || confirm.type === 'decline') return confirm.blog.id + confirm.type;
   if (confirm.type === 'shift') return confirm.blog.id + confirm.direction;
-  if (confirm.type === 'move') return confirm.blog.id + confirm.placement;
+  if (confirm.type === 'move' || confirm.type === 'submit-move') {
+    return confirm.blog.id + (confirm.placement || 'move');
+  }
   return confirm.blog.id + confirm.type;
 }
 
+function needsAdminPicker(type) {
+  return type === 'submit' || type === 'submit-delete' || type === 'submit-move';
+}
+
 export default function BlogListing() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const [blogs, setBlogs] = useState([]);
+  const [admins, setAdmins] = useState([]);
   const [filter, setFilter] = useState('cover');
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -195,6 +253,13 @@ export default function BlogListing() {
   const load = async () => {
     const items = await fetchBlogs();
     setBlogs(items);
+    try {
+      const adminList = await fetchAdmins();
+      setAdmins(adminList);
+    } catch (err) {
+      setAdmins([]);
+      throw err;
+    }
   };
 
   useEffect(() => {
@@ -208,9 +273,8 @@ export default function BlogListing() {
 
   const visible = useMemo(() => {
     if (filter === 'deleted') return deleted;
-    if (filter === 'pending') {
-      return active.filter((item) => item.published === false);
-    }
+    if (filter === 'pending') return active.filter((item) => item.approvalStatus === 'pending');
+    if (filter === 'declined') return active.filter((item) => item.approvalStatus === 'declined');
     return active.filter((item) => (item.placement || 'index') === filter);
   }, [active, deleted, filter]);
 
@@ -219,13 +283,15 @@ export default function BlogListing() {
       cover: active.filter((item) => item.placement === 'cover').length,
       features: active.filter((item) => item.placement === 'features').length,
       index: active.filter((item) => item.placement === 'index').length,
-      pending: active.filter((item) => item.published === false).length,
+      pending: active.filter((item) => item.approvalStatus === 'pending').length,
+      declined: active.filter((item) => item.approvalStatus === 'declined').length,
       deleted: deleted.length,
     }),
     [active, deleted]
   );
 
   const currentSection = SECTIONS.find((item) => item.id === filter);
+  const defaultApproverId = String(admins[0]?.userId || '');
 
   const openNew = () => {
     const placement = SECTIONS.some((item) => item.id === filter) ? filter : 'index';
@@ -263,14 +329,32 @@ export default function BlogListing() {
 
   const requestSave = (event) => {
     event.preventDefault();
+    if (isAdmin) {
+      setConfirm({
+        type: editing === 'new' ? 'add' : 'save',
+        blog: {
+          id: editing === 'new' ? 'new' : editing,
+          title: form.title,
+          excerpt: form.excerpt,
+          placement: form.placement,
+        },
+      });
+      return;
+    }
+    if (!admins.length) {
+      setError('No admins are available to approve this change.');
+      return;
+    }
     setConfirm({
-      type: editing === 'new' ? 'add' : 'save',
+      type: 'submit',
+      action: editing === 'new' ? 'create' : 'update',
       blog: {
         id: editing === 'new' ? 'new' : editing,
         title: form.title,
         excerpt: form.excerpt,
         placement: form.placement,
       },
+      approverId: defaultApproverId,
     });
   };
 
@@ -280,25 +364,66 @@ export default function BlogListing() {
       featured: form.placement === 'cover',
       publishedAt: form.publishedAt || undefined,
       readTime: form.readTime || undefined,
-      published: isAdmin ? form.published : false,
+      published: form.published,
     };
     if (editing === 'new') {
       await createBlog(payload);
-      setNotice(
-        isAdmin
-          ? `Blog added to ${sectionLabel(form.placement)}.`
-          : 'Blog saved as pending. An admin must approve it before it goes live.'
-      );
+      setNotice(`Blog added to ${sectionLabel(form.placement)}.`);
     } else {
       await updateBlog(editing, payload);
-      setNotice(isAdmin ? 'Blog updated.' : 'Changes saved. Waiting for admin approval.');
+      setNotice('Blog updated.');
     }
     await load();
     closeForm();
   };
 
+  const persistSubmit = async (nextConfirm) => {
+    const approverId = Number(nextConfirm.approverId);
+    if (nextConfirm.type === 'submit-delete') {
+      await submitBlogChange({
+        action: 'delete',
+        blogId: nextConfirm.blog.id,
+        approverId,
+      });
+      setNotice(`Delete request sent to ${adminName(approverId)}.`);
+      await load();
+      return;
+    }
+    if (nextConfirm.type === 'submit-move') {
+      await submitBlogChange({
+        action: 'move',
+        blogId: nextConfirm.blog.id,
+        approverId,
+        payload: { placement: nextConfirm.placement },
+      });
+      setNotice(`Move request sent to ${adminName(approverId)}.`);
+      await load();
+      return;
+    }
+    const payload = {
+      ...form,
+      featured: form.placement === 'cover',
+      publishedAt: form.publishedAt || undefined,
+      readTime: form.readTime || undefined,
+    };
+    await submitBlogChange({
+      action: nextConfirm.action,
+      blogId: nextConfirm.action === 'create' ? undefined : editing,
+      approverId,
+      payload,
+    });
+    setNotice(`Sent to ${adminName(approverId)} for approval.`);
+    await load();
+    closeForm();
+  };
+
+  const adminName = (id) => {
+    const match = admins.find((item) => String(item.userId) === String(id));
+    return match?.name || 'the selected admin';
+  };
+
   const confirmBusy = Boolean(confirm && busy === confirmBusyKey(confirm));
-  const copy = confirm ? confirmCopy(confirm, isAdmin) : null;
+  const copy = confirm ? confirmCopy(confirm) : null;
 
   const closeConfirm = () => {
     if (confirmBusy) return;
@@ -307,16 +432,29 @@ export default function BlogListing() {
 
   const runConfirm = async () => {
     if (!confirm) return;
+    if (needsAdminPicker(confirm.type) && !confirm.approverId) {
+      setError('Please select an admin.');
+      return;
+    }
+    if (confirm.type === 'decline' && String(confirm.message || '').trim().length < 3) {
+      setError('Please add a decline message.');
+      return;
+    }
     const { type, blog, placement, direction } = confirm;
     setBusy(confirmBusyKey(confirm));
     setError('');
     setNotice('');
     try {
-      if (type === 'add' || type === 'save') {
+      if (type === 'submit' || type === 'submit-delete' || type === 'submit-move') {
+        await persistSubmit(confirm);
+      } else if (type === 'add' || type === 'save') {
         await persistForm();
-      } else if (type === 'approve') {
-        await updateBlog(blog.id, { published: true });
-        setNotice('Blog approved and published.');
+      } else if (type === 'approve' || type === 'decline') {
+        await reviewBlog(blog.id, {
+          status: type === 'approve' ? 'approved' : 'declined',
+          message: confirm.message || '',
+        });
+        setNotice(type === 'approve' ? 'Request approved.' : 'Request declined.');
         await load();
       } else if (type === 'move') {
         const items = await placeBlog(blog.id, placement);
@@ -356,16 +494,29 @@ export default function BlogListing() {
     }
   };
 
+  const openUserRequest = (type, blog, extra = {}) => {
+    if (!admins.length) {
+      setError('No admins are available to approve this change.');
+      return;
+    }
+    setConfirm({
+      type,
+      blog,
+      approverId: String(blog.approverId || defaultApproverId),
+      ...extra,
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-xl3 p-5 md:p-6 shadow-card border border-myland-mist/80">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <p className="text-sm text-myland-slate max-w-2xl">
-            These three sections match the public Blog page: Cover story (hero), Field notes (two
-            large cards), and The index (the numbered list). Staff can update posts; an admin
-            must approve them before they appear on the public site.
+            {isAdmin
+              ? 'Admins only approve or decline staff requests. Content design, additions, moves, and deletions are done by staff and then sent here for a decision.'
+              : 'Design, add, and request deletions here. Those changes stay off the public Blog page until you send them to an admin for approval. You will see the status as approved, pending, or declined.'}
           </p>
-          {editing == null && filter !== 'deleted' && (
+          {!isAdmin && editing == null && filter !== 'deleted' && (
             <button type="button" onClick={openNew} className="btn-primary !py-2.5 !px-4 !text-xs shrink-0">
               <HiOutlinePlus className="text-base" /> Add blog
             </button>
@@ -395,7 +546,18 @@ export default function BlogListing() {
                 : 'bg-myland-cream text-myland-slate hover:text-myland-ink'
             }`}
           >
-            Pending approval ({counts.pending})
+            Pending ({counts.pending})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilter('declined')}
+            className={`rounded-full px-4 py-2 text-xs font-display font-semibold transition-colors ${
+              filter === 'declined'
+                ? 'bg-myland-red text-white'
+                : 'bg-myland-cream text-myland-slate hover:text-myland-ink'
+            }`}
+          >
+            Declined ({counts.declined})
           </button>
           <button
             type="button"
@@ -417,7 +579,7 @@ export default function BlogListing() {
       {error && <p className="text-myland-red text-sm">{error}</p>}
       {notice && <p className="text-emerald-700 text-sm">{notice}</p>}
 
-      {editing != null && (
+      {editing != null && !isAdmin && (
         <form
           onSubmit={requestSave}
           className="bg-white rounded-xl3 p-5 md:p-6 shadow-card border border-myland-mist/80 space-y-5"
@@ -428,7 +590,9 @@ export default function BlogListing() {
                 {editing === 'new' ? 'Add blog' : 'Edit blog'}
               </h2>
               <p className="text-sm text-myland-slate mt-1">
-                Choose which section of the public Blog page this post belongs to.
+                {isAdmin
+                  ? 'Choose which section of the public Blog page this post belongs to.'
+                  : 'Design the post, then send it to an admin. The public page will not update until they approve it.'}
               </p>
             </div>
             <button
@@ -611,13 +775,19 @@ export default function BlogListing() {
             </label>
           ) : (
             <p className="text-sm text-myland-slate">
-              This post stays pending until an admin approves it.
+              This post will stay pending until the admin you select approves it.
             </p>
           )}
 
           <div className="flex flex-wrap gap-2">
             <button type="submit" disabled={busy === 'save'} className="btn-primary !py-2.5 !px-5 !text-xs">
-              {busy === 'save' ? 'Saving…' : editing === 'new' ? 'Add blog' : 'Save changes'}
+              {busy === 'save'
+                ? 'Saving…'
+                : isAdmin
+                  ? editing === 'new'
+                    ? 'Add blog'
+                    : 'Save changes'
+                  : 'Send to approval'}
             </button>
             <button type="button" onClick={closeForm} className="btn-ghost !py-2.5 !px-5 !text-xs">
               Cancel
@@ -627,115 +797,135 @@ export default function BlogListing() {
       )}
 
       <ul className="space-y-4">
-        {visible.map((blog, index) => (
-          <li
-            key={blog.id}
-            className="bg-white rounded-xl3 p-4 md:p-5 shadow-card border border-myland-mist/80"
-          >
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="w-full md:w-44 h-32 rounded-xl2 overflow-hidden bg-myland-cream shrink-0">
-                <img src={blog.image} alt="" className="w-full h-full object-cover" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-2 mb-2">
-                  {blog.placement === 'cover' && blog.status !== 'deleted' && (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-display font-semibold uppercase tracking-wide rounded-full px-2.5 py-1 bg-myland-gold/15 text-myland-gold">
-                      <HiStar /> Cover story
-                    </span>
-                  )}
-                  <span
-                    className={`text-[10px] font-display font-semibold uppercase tracking-wide rounded-full px-2.5 py-1 ${
-                      blog.status === 'deleted'
-                        ? 'bg-myland-mist text-myland-slate'
-                        : blog.published
-                          ? 'bg-emerald-50 text-emerald-700'
-                          : 'bg-amber-50 text-amber-700'
-                    }`}
-                  >
-                    {blog.status === 'deleted' ? 'Deleted' : blog.published ? 'Published' : 'Pending'}
-                  </span>
-                  <span className="text-[10px] font-display font-semibold uppercase tracking-wide text-myland-red">
-                    {blog.topic}
-                  </span>
-                  <span className="text-xs text-myland-slate">{blog.date}</span>
+        {visible.map((blog) => {
+          const badge = approvalBadge(blog);
+          const proposedPlacement = blog.pendingPayload?.placement;
+          return (
+            <li
+              key={blog.id}
+              className="bg-white rounded-xl3 p-4 md:p-5 shadow-card border border-myland-mist/80"
+            >
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="w-full md:w-44 h-32 rounded-xl2 overflow-hidden bg-myland-cream shrink-0">
+                  <img src={blog.image} alt="" className="w-full h-full object-cover" />
                 </div>
-                <h2 className="font-display font-semibold text-myland-ink">{blog.title}</h2>
-                <p className="text-sm text-myland-slate mt-1 line-clamp-2">{blog.excerpt}</p>
-                <p className="text-xs text-myland-slate mt-2">
-                  {sectionLabel(blog.placement)} · {blog.readTime} · /blog/{blog.slug}
-                </p>
-              </div>
-              <div className="flex md:flex-col flex-wrap gap-2 shrink-0">
-                {blog.status !== 'deleted' && (
-                  <>
-                    <button
-                      type="button"
-                      disabled={busy.startsWith(blog.id) || index === 0}
-                      onClick={() => setConfirm({ type: 'shift', blog, direction: 'up' })}
-                      className="inline-flex items-center justify-center gap-2 rounded-full border border-myland-mist bg-white text-myland-ink font-display font-semibold text-xs px-3 py-2 hover:border-myland-ink/30 disabled:opacity-40"
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
+                    {blog.placement === 'cover' && blog.status !== 'deleted' && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-display font-semibold uppercase tracking-wide rounded-full px-2.5 py-1 bg-myland-gold/15 text-myland-gold">
+                        <HiStar /> Cover story
+                      </span>
+                    )}
+                    <span
+                      className={`text-[10px] font-display font-semibold uppercase tracking-wide rounded-full px-2.5 py-1 ${badge.className}`}
                     >
-                      <HiArrowUp /> Up
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy.startsWith(blog.id) || index === visible.length - 1}
-                      onClick={() => setConfirm({ type: 'shift', blog, direction: 'down' })}
-                      className="inline-flex items-center justify-center gap-2 rounded-full border border-myland-mist bg-white text-myland-ink font-display font-semibold text-xs px-3 py-2 hover:border-myland-ink/30 disabled:opacity-40"
-                    >
-                      <HiArrowDown /> Down
-                    </button>
-                    {SECTIONS.filter((item) => item.id !== blog.placement).map((item) => (
+                      {badge.label}
+                    </span>
+                    {blog.pendingAction && blog.pendingAction !== 'none' && blog.approvalStatus !== 'approved' && (
+                      <span className="text-[10px] font-display font-semibold uppercase tracking-wide rounded-full px-2.5 py-1 bg-myland-cream text-myland-slate">
+                        {pendingActionLabel(blog.pendingAction)}
+                      </span>
+                    )}
+                    <span className="text-[10px] font-display font-semibold uppercase tracking-wide text-myland-red">
+                      {blog.topic}
+                    </span>
+                    <span className="text-xs text-myland-slate">{blog.date}</span>
+                  </div>
+                  <h2 className="font-display font-semibold text-myland-ink">
+                    {blog.pendingPayload?.title || blog.title}
+                  </h2>
+                  <p className="text-sm text-myland-slate mt-1 line-clamp-2">
+                    {blog.pendingPayload?.excerpt || blog.excerpt}
+                  </p>
+                  <p className="text-xs text-myland-slate mt-2">
+                    {sectionLabel(blog.placement)}
+                    {proposedPlacement && proposedPlacement !== blog.placement
+                      ? ` → ${sectionLabel(proposedPlacement)}`
+                      : ''}{' '}
+                    · {blog.readTime} · /blog/{blog.slug}
+                  </p>
+                  {(blog.approverName || blog.requestedByName || blog.approvalMessage) && (
+                    <div className="mt-3 rounded-2xl bg-myland-cream px-4 py-3 text-xs text-myland-slate space-y-1">
+                      {blog.requestedByName && (
+                        <p>
+                          Requested by{' '}
+                          <span className="font-semibold text-myland-ink">{blog.requestedByName}</span>
+                        </p>
+                      )}
+                      {blog.approverName && (
+                        <p>
+                          Sent to{' '}
+                          <span className="font-semibold text-myland-ink">{blog.approverName}</span>
+                          {String(blog.approverId) === String(user?.userId) ? ' (you)' : ''}
+                        </p>
+                      )}
+                      {blog.approvalMessage && (
+                        <p>
+                          Admin message:{' '}
+                          <span className="text-myland-ink">{blog.approvalMessage}</span>
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="flex md:flex-col flex-wrap gap-2 shrink-0">
+                  {isAdmin && blog.status !== 'deleted' && blog.approvalStatus === 'pending' && (
+                    <>
                       <button
-                        key={item.id}
                         type="button"
                         disabled={busy.startsWith(blog.id)}
-                        onClick={() => setConfirm({ type: 'move', blog, placement: item.id })}
-                        className="inline-flex items-center justify-center rounded-full border border-myland-mist bg-white text-myland-ink font-display font-semibold text-xs px-3 py-2 hover:border-myland-ink/30 disabled:opacity-50"
-                      >
-                        Move to {item.label}
-                      </button>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => openEdit(blog)}
-                      className="inline-flex items-center justify-center gap-2 rounded-full bg-myland-ink text-white font-display font-semibold text-xs px-3 py-2"
-                    >
-                      <HiOutlinePencil /> Edit
-                    </button>
-                    {isAdmin && !blog.published && (
-                      <button
-                        type="button"
-                        disabled={busy.startsWith(blog.id)}
-                        onClick={() => setConfirm({ type: 'approve', blog })}
+                        onClick={() => setConfirm({ type: 'approve', blog, message: '' })}
                         className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-600 text-white font-display font-semibold text-xs px-3 py-2 hover:bg-emerald-700 disabled:opacity-50"
                       >
                         <HiStar /> Approve
                       </button>
-                    )}
-                    <button
-                      type="button"
-                      disabled={busy.startsWith(blog.id)}
-                      onClick={() => setConfirm({ type: 'delete', blog })}
-                      className="inline-flex items-center justify-center gap-2 rounded-full border border-myland-mist bg-white text-myland-red font-display font-semibold text-xs px-3 py-2 hover:border-myland-red disabled:opacity-50"
-                    >
-                      <HiOutlineTrash /> Delete
-                    </button>
-                  </>
-                )}
-                {blog.status === 'deleted' && (
-                  <button
-                    type="button"
-                    disabled={busy.startsWith(blog.id)}
-                    onClick={() => restore(blog)}
-                    className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-600 text-white font-display font-semibold text-xs px-3 py-2 disabled:opacity-50"
-                  >
-                    Restore
-                  </button>
-                )}
+                      <button
+                        type="button"
+                        disabled={busy.startsWith(blog.id)}
+                        onClick={() => setConfirm({ type: 'decline', blog, message: '' })}
+                        className="inline-flex items-center justify-center gap-2 rounded-full border border-myland-mist bg-white text-myland-red font-display font-semibold text-xs px-3 py-2 hover:border-myland-red disabled:opacity-50"
+                      >
+                        Decline
+                      </button>
+                    </>
+                  )}
+                  {!isAdmin && blog.status !== 'deleted' && (
+                    <>
+                      {SECTIONS.filter((item) => item.id !== blog.placement).map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          disabled={busy.startsWith(blog.id) || blog.approvalStatus === 'pending'}
+                          onClick={() =>
+                            openUserRequest('submit-move', blog, { placement: item.id })
+                          }
+                          className="inline-flex items-center justify-center rounded-full border border-myland-mist bg-white text-myland-ink font-display font-semibold text-xs px-3 py-2 hover:border-myland-ink/30 disabled:opacity-50"
+                        >
+                          Request {item.label}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => openEdit(blog)}
+                        className="inline-flex items-center justify-center gap-2 rounded-full bg-myland-ink text-white font-display font-semibold text-xs px-3 py-2"
+                      >
+                        <HiOutlinePencil /> Edit
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy.startsWith(blog.id) || blog.approvalStatus === 'pending'}
+                        onClick={() => openUserRequest('submit-delete', blog)}
+                        className="inline-flex items-center justify-center gap-2 rounded-full border border-myland-mist bg-white text-myland-red font-display font-semibold text-xs px-3 py-2 hover:border-myland-red disabled:opacity-50"
+                      >
+                        <HiOutlineTrash /> Request delete
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ul>
 
       {!loading && visible.length === 0 && (
@@ -745,7 +935,11 @@ export default function BlogListing() {
           <p className="text-sm text-myland-slate mt-2">
             {filter === 'deleted'
               ? 'Deleted posts stay in the database and appear here.'
-              : 'Add a post or move one into this section.'}
+              : filter === 'pending'
+                ? 'When staff send a change to an admin, it appears here until it is approved or declined.'
+                : filter === 'declined'
+                  ? 'Declined requests appear here with the admin message.'
+                  : 'Add a post or move one into this section.'}
           </p>
         </div>
       )}
@@ -780,15 +974,61 @@ export default function BlogListing() {
               <p className="font-display font-semibold text-sm text-myland-ink">{confirm.blog.title}</p>
               <p className="text-xs text-myland-red mt-0.5">
                 {sectionLabel(confirm.blog.placement)}
-                {confirm.type === 'move' ? ` → ${sectionLabel(confirm.placement)}` : ''}
+                {confirm.type === 'move' || confirm.type === 'submit-move'
+                  ? ` → ${sectionLabel(confirm.placement)}`
+                  : ''}
                 {confirm.type === 'shift' ? (confirm.direction === 'up' ? ' · move up' : ' · move down') : ''}
               </p>
               <p className="text-sm text-myland-slate mt-2 line-clamp-3">{confirm.blog.excerpt}</p>
             </div>
+            {needsAdminPicker(confirm.type) && (
+              <label className="block mt-4">
+                <span className="block text-xs font-display font-semibold text-myland-ink mb-2">
+                  Send to admin
+                </span>
+                <select
+                  className={inputClass}
+                  value={confirm.approverId || ''}
+                  onChange={(e) =>
+                    setConfirm((current) => ({ ...current, approverId: e.target.value }))
+                  }
+                >
+                  <option value="">Select an admin</option>
+                  {admins.map((admin) => (
+                    <option key={admin.userId} value={admin.userId}>
+                      {admin.name} · {admin.email}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {(confirm.type === 'approve' || confirm.type === 'decline') && (
+              <label className="block mt-4">
+                <span className="block text-xs font-display font-semibold text-myland-ink mb-2">
+                  {confirm.type === 'decline' ? 'Decline message' : 'Note for the author (optional)'}
+                </span>
+                <textarea
+                  className={`${inputClass} min-h-[88px] resize-y`}
+                  value={confirm.message || ''}
+                  onChange={(e) =>
+                    setConfirm((current) => ({ ...current, message: e.target.value }))
+                  }
+                  placeholder={
+                    confirm.type === 'decline'
+                      ? 'Tell the author what to change before they resend.'
+                      : 'Optional note that the author will see.'
+                  }
+                />
+              </label>
+            )}
             <div className="flex flex-wrap gap-2 mt-5">
               <button
                 type="button"
-                disabled={confirmBusy}
+                disabled={
+                  confirmBusy ||
+                  (needsAdminPicker(confirm.type) && !confirm.approverId) ||
+                  (confirm.type === 'decline' && String(confirm.message || '').trim().length < 3)
+                }
                 onClick={runConfirm}
                 className={copy.actionClass}
               >

@@ -76,8 +76,7 @@ export default function UserManagement() {
     setShowPassword(false);
   };
 
-  const persist = async (event) => {
-    event.preventDefault();
+  const persist = async () => {
     setBusy('save');
     setError('');
     setNotice('');
@@ -97,11 +96,23 @@ export default function UserManagement() {
       }
       await load();
       closeForm();
+      setConfirm(null);
     } catch (err) {
       setError(err.message);
+      setConfirm(null);
     } finally {
       setBusy('');
     }
+  };
+
+  const requestSave = (event) => {
+    event.preventDefault();
+    setConfirm({
+      type: editing === 'new' ? 'add' : 'save',
+      name: form.name,
+      email: form.email,
+      role: form.role,
+    });
   };
 
   const restore = async (user) => {
@@ -177,7 +188,7 @@ export default function UserManagement() {
 
       {editing != null && (
         <form
-          onSubmit={persist}
+          onSubmit={requestSave}
           className="bg-white rounded-xl3 p-5 md:p-6 shadow-card border border-myland-mist/80 space-y-4"
         >
           <div className="flex items-start justify-between gap-3">
@@ -307,7 +318,7 @@ export default function UserManagement() {
                           <button
                             type="button"
                             disabled={busy === String(user.userId) || user.userId === currentUser?.userId}
-                            onClick={() => setConfirm(user)}
+                            onClick={() => setConfirm({ type: 'delete', ...user })}
                             className="inline-flex items-center gap-1 rounded-full border border-myland-mist bg-white text-myland-red font-display font-semibold text-xs px-3 py-2 hover:border-myland-red disabled:opacity-40"
                           >
                             <HiOutlineTrash /> Delete
@@ -342,27 +353,50 @@ export default function UserManagement() {
             type="button"
             className="absolute inset-0 bg-myland-ink/40"
             aria-label="Cancel"
-            onClick={() => setConfirm(null)}
+            onClick={() => !busy && setConfirm(null)}
           />
           <div className="relative w-full max-w-md bg-white rounded-xl3 p-6 shadow-card">
-            <h3 className="font-display font-semibold text-lg text-myland-ink">Delete this user?</h3>
+            <h3 className="font-display font-semibold text-lg text-myland-ink">
+              {confirm.type === 'add'
+                ? 'Add this user?'
+                : confirm.type === 'save'
+                  ? 'Save these user changes?'
+                  : 'Delete this user?'}
+            </h3>
             <p className="text-sm text-myland-slate mt-2">
-              The record stays in the database with user_status set to deleted. They will not be
-              able to sign in.
+              {confirm.type === 'add'
+                ? 'This creates the account and they will be able to sign in with the details you entered.'
+                : confirm.type === 'save'
+                  ? 'The name, email, role, and password change (if you entered one) will be saved.'
+                  : 'The record stays in the database with user_status set to deleted. They will not be able to sign in.'}
             </p>
             <div className="mt-4 rounded-2xl bg-myland-cream px-4 py-3">
               <p className="font-display font-semibold text-sm text-myland-ink">{confirm.name}</p>
               <p className="text-xs text-myland-slate mt-0.5">{confirm.email}</p>
+              {confirm.role && (
+                <p className="text-xs text-myland-ink mt-1">Role: {confirm.role}</p>
+              )}
             </div>
             <div className="flex flex-wrap gap-2 mt-5">
-              <button
-                type="button"
-                disabled={Boolean(busy)}
-                onClick={runDelete}
-                className="inline-flex items-center justify-center rounded-full bg-myland-red text-white font-display font-semibold text-xs px-5 py-2.5 hover:bg-myland-redDark disabled:opacity-50"
-              >
-                {busy ? 'Working…' : 'Yes, delete'}
-              </button>
+              {confirm.type === 'add' || confirm.type === 'save' ? (
+                <button
+                  type="button"
+                  disabled={Boolean(busy)}
+                  onClick={persist}
+                  className="inline-flex items-center justify-center rounded-full bg-myland-ink text-white font-display font-semibold text-xs px-5 py-2.5 disabled:opacity-50"
+                >
+                  {busy ? 'Working…' : confirm.type === 'add' ? 'Yes, add user' : 'Yes, save changes'}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={Boolean(busy)}
+                  onClick={runDelete}
+                  className="inline-flex items-center justify-center rounded-full bg-myland-red text-white font-display font-semibold text-xs px-5 py-2.5 hover:bg-myland-redDark disabled:opacity-50"
+                >
+                  {busy ? 'Working…' : 'Yes, delete'}
+                </button>
+              )}
               <button
                 type="button"
                 disabled={Boolean(busy)}

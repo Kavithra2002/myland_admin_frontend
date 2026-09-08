@@ -46,3 +46,21 @@ export async function reorderBlog(id, direction) {
   const data = await readError(res, 'Could not reorder blog');
   return data.blogs || [];
 }
+
+export async function submitBlogChange(payload) {
+  const res = await apiFetch('/api/blogs/submit', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  const data = await readError(res, 'Could not send for approval');
+  return data.blog;
+}
+
+export async function reviewBlog(id, payload) {
+  const res = await apiFetch(`/api/blogs/${id}/review`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  const data = await readError(res, 'Could not review blog');
+  return data.blog;
+}
