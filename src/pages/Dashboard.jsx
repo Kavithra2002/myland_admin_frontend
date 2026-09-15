@@ -11,28 +11,34 @@ import {
 import { fetchReviews } from '../api/reviews.js';
 import { fetchBlogs } from '../api/blogs.js';
 import { fetchUsers } from '../api/users.js';
+import { fetchProjects } from '../api/projects.js';
+import { fetchMailStatus, sendTestMailRequest } from '../api/auth.js';
 import StarRating from '../components/StarRating.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 
-const SAMPLE_STATS = [
-  { label: 'Active listings', value: '10', icon: HiOutlineOfficeBuilding },
-  { label: 'Open inquiries', value: '4', icon: HiOutlineChatAlt2 },
-];
-
 export default function Dashboard() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const [reviews, setReviews] = useState([]);
   const [blogs, setBlogs] = useState([]);
   const [staffCount, setStaffCount] = useState(null);
+  const [listingCount, setListingCount] = useState(null);
+  const [pendingListings, setPendingListings] = useState(0);
+  const [mail, setMail] = useState(null);
+  const [mailNotice, setMailNotice] = useState('');
+  const [mailBusy, setMailBusy] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const jobs = [fetchReviews(), fetchBlogs()];
+    const jobs = [fetchReviews(), fetchBlogs(), fetchProjects({ all: true }), fetchMailStatus()];
     if (isAdmin) jobs.push(fetchUsers('active'));
     Promise.all(jobs)
-      .then(([nextReviews, nextBlogs, nextUsers]) => {
+      .then(([nextReviews, nextBlogs, nextProjects, nextMail, nextUsers]) => {
         setReviews(nextReviews);
         setBlogs(nextBlogs);
+        setMail(nextMail);
+        const listings = (nextProjects || []).filter((item) => item.rowStatus !== 'deleted');
+        setListingCount(listings.length);
+        setPendingListings(listings.filter((item) => item.approvalStatus === 'pending').length);
         if (Array.isArray(nextUsers)) setStaffCount(nextUsers.length);
       })
       .catch((err) => setError(err.message));
@@ -46,6 +52,47 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
+      {mail && (
+        <div
+          className={`rounded-xl3 px-5 py-4 text-sm border ${
+            mail.canSend
+              ? 'bg-emerald-50 border-emerald-100 text-emerald-800'
+              : 'bg-amber-50 border-amber-100 text-amber-800'
+          }`}
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              {mail.canSend ? (
+                <p>Approval emails are on{mail.from ? ` and send from ${mail.from}` : ''}.</p>
+              ) : (
+                <p>
+                  Approval emails are not connected yet. Set SMTP in the backend .env, then send a test mail.
+                </p>
+              )}
+              {mailNotice ? <p className="mt-2">{mailNotice}</p> : null}
+            </div>
+            <button
+              type="button"
+              disabled={mailBusy}
+              onClick={async () => {
+                setMailBusy(true);
+                setMailNotice('');
+                try {
+                  await sendTestMailRequest();
+                  setMailNotice(`Test mail sent to ${user?.email || 'your Gmail'}. Check the inbox.`);
+                } catch (err) {
+                  setMailNotice(err.message);
+                } finally {
+                  setMailBusy(false);
+                }
+              }}
+              className="shrink-0 inline-flex items-center justify-center rounded-full bg-white text-myland-ink font-display font-semibold text-xs px-4 py-2 border border-current/10 disabled:opacity-50"
+            >
+              {mailBusy ? 'Sending…' : 'Send test mail'}
+            </button>
+          </div>
+        </div>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <Link
           to="/reviews"
@@ -91,18 +138,27 @@ export default function Dashboard() {
             <p className="text-sm text-myland-slate mt-1">Active staff users</p>
           </Link>
         )}
-        {SAMPLE_STATS.slice(0, isAdmin ? 1 : 2).map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <div key={stat.label} className="bg-white rounded-xl3 p-5 shadow-card border border-myland-mist/80">
-              <span className="w-10 h-10 rounded-full bg-myland-cream text-myland-ink flex items-center justify-center mb-4">
-                <Icon className="text-lg" />
-              </span>
-              <p className="font-display font-bold text-3xl text-myland-ink">{stat.value}</p>
-              <p className="text-sm text-myland-slate mt-1">{stat.label}</p>
-            </div>
-          );
-        })}
+        <Link
+          to="/listings"
+          className="bg-white rounded-xl3 p-5 shadow-card border border-myland-mist/80 hover:border-myland-red/40 transition-colors"
+        >
+          <span className="w-10 h-10 rounded-full bg-myland-cream text-myland-ink flex items-center justify-center mb-4">
+            <HiOutlineOfficeBuilding className="text-lg" />
+          </span>
+          <p className="font-display font-bold text-3xl text-myland-ink">{listingCount ?? '—'}</p>
+          <p className="text-sm text-myland-slate mt-1">
+            Project listings{pendingListings ? ` · ${pendingListings} pending` : ''}
+          </p>
+        </Link>
+        {!isAdmin && (
+          <div className="bg-white rounded-xl3 p-5 shadow-card border border-myland-mist/80">
+            <span className="w-10 h-10 rounded-full bg-myland-cream text-myland-ink flex items-center justify-center mb-4">
+              <HiOutlineChatAlt2 className="text-lg" />
+            </span>
+            <p className="font-display font-bold text-3xl text-myland-ink">4</p>
+            <p className="text-sm text-myland-slate mt-1">Open inquiries</p>
+          </div>
+        )}
       </div>
 
       <section className="bg-white rounded-xl3 p-6 shadow-card border border-myland-mist/80">
