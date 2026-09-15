@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard.jsx';
 import ReviewAuthorizer from './pages/ReviewAuthorizer.jsx';
 import BlogListing from './pages/BlogListing.jsx';
 import ManageListings from './pages/ManageListings.jsx';
+import ProjectForm from './pages/ProjectForm.jsx';
 import UserManagement from './pages/UserManagement.jsx';
 import Inquiries from './pages/Inquiries.jsx';
 import Login from './pages/Login.jsx';
@@ -41,6 +42,8 @@ export default function App() {
         <Route path="/reviews" element={<ReviewAuthorizer />} />
         <Route path="/blogs" element={<BlogListing />} />
         <Route path="/listings" element={<ManageListings />} />
+        <Route path="/listings/new" element={<ProjectForm />} />
+        <Route path="/listings/:id/edit" element={<ProjectForm />} />
         <Route
           path="/users"
           element={

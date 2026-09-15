@@ -25,9 +25,16 @@ const TITLES = {
   '/reviews': 'Review Authorizer',
   '/blogs': 'Blog Listing',
   '/listings': 'Manage Listings',
+  '/listings/new': 'Add Project',
   '/users': 'User Management',
   '/inquiries': 'Inquiries',
 };
+
+function pageTitle(pathname) {
+  if (pathname === '/listings/new') return 'Add Project';
+  if (/^\/listings\/[^/]+\/edit$/.test(pathname)) return 'Edit Project';
+  return TITLES[pathname] || 'Admin';
+}
 
 function initials(name) {
   const parts = String(name || '')
@@ -88,7 +95,7 @@ export default function AdminLayout() {
                 MyLand Admin
               </p>
               <h1 className="font-display font-bold text-xl text-myland-ink">
-                {TITLES[pathname] || 'Admin'}
+                {pageTitle(pathname)}
               </h1>
             </div>
             <div className="flex items-center gap-3">
