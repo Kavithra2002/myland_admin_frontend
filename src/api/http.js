@@ -36,7 +36,12 @@ export async function apiFetch(path, options = {}) {
   if (options.body && !headers['Content-Type'] && !(options.body instanceof FormData)) {
     headers['Content-Type'] = 'application/json';
   }
-  const res = await fetch(apiUrl(path), { ...options, headers });
+  let res;
+  try {
+    res = await fetch(apiUrl(path), { ...options, headers });
+  } catch {
+    throw new Error('Cannot reach the server. Wait a moment and try again.');
+  }
   if (res.status === 401) {
     setToken('');
     window.dispatchEvent(new Event('myland-auth-expired'));

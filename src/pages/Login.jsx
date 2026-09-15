@@ -48,9 +48,7 @@ export default function Login() {
         </div>
 
         <h1 className="font-display font-bold text-xl text-myland-ink">Welcome back</h1>
-        <p className="text-sm text-myland-slate mt-1 mb-5">
-          Sign in with the account an admin created for you.
-        </p>
+        <p className="text-sm text-myland-slate mt-1 mb-5">Sign in with your email and password.</p>
 
         <form onSubmit={submit} className="space-y-4">
           <label className="block">

@@ -8,7 +8,7 @@ const INQUIRIES = [
   },
   {
     name: 'Menaka Jayasuriya',
-    project: 'Highway Drive – Mirigama',
+    project: 'Kirindivela – Serenity Park',
     type: 'Bank loan assistance',
     message: 'Need help checking loan eligibility for a 10 perch plot.',
     status: 'In progress',
