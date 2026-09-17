@@ -6,6 +6,7 @@ import {
   HiOutlineOfficeBuilding,
   HiOutlineUsers,
   HiOutlineChatAlt2,
+  HiOutlineLocationMarker,
   HiOutlineLogout,
 } from 'react-icons/hi';
 import logo from '../assets/myland-logo.png';
@@ -16,6 +17,7 @@ const NAV = [
   { to: '/reviews', label: 'Review Authorizer', icon: HiOutlineStar },
   { to: '/blogs', label: 'Blog Listing', icon: HiOutlineBookOpen },
   { to: '/listings', label: 'Manage Listings', icon: HiOutlineOfficeBuilding },
+  { to: '/property-updates', label: 'Property Updates', icon: HiOutlineLocationMarker },
   { to: '/users', label: 'User Management', icon: HiOutlineUsers, adminOnly: true },
   { to: '/inquiries', label: 'Inquiries', icon: HiOutlineChatAlt2 },
 ];
@@ -26,6 +28,7 @@ const TITLES = {
   '/blogs': 'Blog Listing',
   '/listings': 'Manage Listings',
   '/listings/new': 'Add Project',
+  '/property-updates': 'Property Updates',
   '/users': 'User Management',
   '/inquiries': 'Inquiries',
 };
