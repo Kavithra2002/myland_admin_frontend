@@ -7,6 +7,7 @@ import {
   HiOutlineUsers,
   HiOutlineChatAlt2,
   HiOutlineLocationMarker,
+  HiOutlineSparkles,
   HiArrowRight,
 } from 'react-icons/hi';
 import { fetchReviews } from '../api/reviews.js';
@@ -130,6 +131,18 @@ export default function Dashboard() {
             Property updates{newLandUpdates ? ` · ${newLandUpdates} new` : ''}
           </p>
         </Link>
+        {!isAdmin && (
+          <Link
+            to="/image-builder"
+            className="bg-white rounded-xl3 p-5 shadow-card border border-myland-mist/80 hover:border-myland-red/40 transition-colors"
+          >
+            <span className="w-10 h-10 rounded-full bg-myland-red/10 text-myland-red flex items-center justify-center mb-4">
+              <HiOutlineSparkles className="text-lg" />
+            </span>
+            <p className="font-display font-bold text-lg text-myland-ink">Image Builder</p>
+            <p className="text-sm text-myland-slate mt-1">Upload a land photo, enhance it, then copy or download</p>
+          </Link>
+        )}
         {!isAdmin && (
           <div className="bg-white rounded-xl3 p-5 shadow-card border border-myland-mist/80">
             <span className="w-10 h-10 rounded-full bg-myland-cream text-myland-ink flex items-center justify-center mb-4">

@@ -7,6 +7,7 @@ import {
   HiOutlineUsers,
   HiOutlineChatAlt2,
   HiOutlineLocationMarker,
+  HiOutlineSparkles,
   HiOutlineLogout,
 } from 'react-icons/hi';
 import logo from '../assets/myland-logo.png';
@@ -18,6 +19,7 @@ const NAV = [
   { to: '/blogs', label: 'Blog Listing', icon: HiOutlineBookOpen },
   { to: '/listings', label: 'Manage Listings', icon: HiOutlineOfficeBuilding },
   { to: '/property-updates', label: 'Property Updates', icon: HiOutlineLocationMarker },
+  { to: '/image-builder', label: 'Image Builder', icon: HiOutlineSparkles, staffOnly: true },
   { to: '/users', label: 'User Management', icon: HiOutlineUsers, adminOnly: true },
   { to: '/inquiries', label: 'Inquiries', icon: HiOutlineChatAlt2 },
 ];
@@ -29,6 +31,7 @@ const TITLES = {
   '/listings': 'Manage Listings',
   '/listings/new': 'Add Project',
   '/property-updates': 'Property Updates',
+  '/image-builder': 'Image Builder',
   '/users': 'User Management',
   '/inquiries': 'Inquiries',
 };
@@ -51,7 +54,11 @@ export default function AdminLayout() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { user, isAdmin, logout } = useAuth();
-  const nav = NAV.filter((item) => !item.adminOnly || isAdmin);
+  const nav = NAV.filter((item) => {
+    if (item.adminOnly) return isAdmin;
+    if (item.staffOnly) return !isAdmin;
+    return true;
+  });
 
   return (
     <div className="min-h-screen bg-myland-cream flex">
