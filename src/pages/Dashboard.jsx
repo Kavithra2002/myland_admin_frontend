@@ -13,13 +13,12 @@ import { fetchReviews } from '../api/reviews.js';
 import { fetchBlogs } from '../api/blogs.js';
 import { fetchUsers } from '../api/users.js';
 import { fetchProjects } from '../api/projects.js';
-import { fetchMailStatus, sendTestMailRequest } from '../api/auth.js';
 import { fetchLandUpdates } from '../api/landUpdates.js';
 import StarRating from '../components/StarRating.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 
 export default function Dashboard() {
-  const { isAdmin, user } = useAuth();
+  const { isAdmin } = useAuth();
   const [reviews, setReviews] = useState([]);
   const [blogs, setBlogs] = useState([]);
   const [staffCount, setStaffCount] = useState(null);
@@ -27,19 +26,15 @@ export default function Dashboard() {
   const [pendingListings, setPendingListings] = useState(0);
   const [landUpdateCount, setLandUpdateCount] = useState(null);
   const [newLandUpdates, setNewLandUpdates] = useState(0);
-  const [mail, setMail] = useState(null);
-  const [mailNotice, setMailNotice] = useState('');
-  const [mailBusy, setMailBusy] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const jobs = [fetchReviews(), fetchBlogs(), fetchProjects({ all: true }), fetchMailStatus(), fetchLandUpdates()];
+    const jobs = [fetchReviews(), fetchBlogs(), fetchProjects({ all: true }), fetchLandUpdates()];
     if (isAdmin) jobs.push(fetchUsers('active'));
     Promise.all(jobs)
-      .then(([nextReviews, nextBlogs, nextProjects, nextMail, nextLandUpdates, nextUsers]) => {
+      .then(([nextReviews, nextBlogs, nextProjects, nextLandUpdates, nextUsers]) => {
         setReviews(nextReviews);
         setBlogs(nextBlogs);
-        setMail(nextMail);
         const listings = (nextProjects || []).filter((item) => item.rowStatus !== 'deleted');
         setListingCount(listings.length);
         setPendingListings(listings.filter((item) => item.approvalStatus === 'pending').length);
@@ -59,47 +54,6 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
-      {mail && (
-        <div
-          className={`rounded-xl3 px-5 py-4 text-sm border ${
-            mail.canSend
-              ? 'bg-emerald-50 border-emerald-100 text-emerald-800'
-              : 'bg-amber-50 border-amber-100 text-amber-800'
-          }`}
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              {mail.canSend ? (
-                <p>Approval emails are on{mail.from ? ` and send from ${mail.from}` : ''}.</p>
-              ) : (
-                <p>
-                  Approval emails are not connected yet. Set SMTP in the backend .env, then send a test mail.
-                </p>
-              )}
-              {mailNotice ? <p className="mt-2">{mailNotice}</p> : null}
-            </div>
-            <button
-              type="button"
-              disabled={mailBusy}
-              onClick={async () => {
-                setMailBusy(true);
-                setMailNotice('');
-                try {
-                  await sendTestMailRequest();
-                  setMailNotice(`Test mail sent to ${user?.email || 'your Gmail'}. Check the inbox.`);
-                } catch (err) {
-                  setMailNotice(err.message);
-                } finally {
-                  setMailBusy(false);
-                }
-              }}
-              className="shrink-0 inline-flex items-center justify-center rounded-full bg-white text-myland-ink font-display font-semibold text-xs px-4 py-2 border border-current/10 disabled:opacity-50"
-            >
-              {mailBusy ? 'Sending…' : 'Send test mail'}
-            </button>
-          </div>
-        </div>
-      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <Link
           to="/reviews"
