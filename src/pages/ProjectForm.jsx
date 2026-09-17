@@ -25,19 +25,13 @@ import {
 const DISTRICTS = ['Colombo', 'Gampaha', 'Kalutara', 'Kandy', 'Galle', 'Matara', 'Kurunegala'];
 const PROPERTY_TYPES = ['Land', 'House', 'Commercial', 'Mixed-use'];
 const MAP_PLACES = [
+  'Balummahara, Gampaha, Sri Lanka',
   'Divulapitiya, Gampaha, Sri Lanka',
-  'Biyagama, Gampaha, Sri Lanka',
   'Kirindivela, Gampaha, Sri Lanka',
-  'Delgoda, Gampaha, Sri Lanka',
+  'Meerigama, Gampaha, Sri Lanka',
   'Dompe, Gampaha, Sri Lanka',
-  'Kaduwela, Colombo, Sri Lanka',
+  'Kiribathgoda, Gampaha, Sri Lanka',
   'Kadawatha, Gampaha, Sri Lanka',
-  'Malabe, Colombo, Sri Lanka',
-  'Ja-Ela, Gampaha, Sri Lanka',
-  'Kalutara South, Kalutara, Sri Lanka',
-  'Kundasale, Kandy, Sri Lanka',
-  'Bope, Galle, Sri Lanka',
-  'Kurunegala Town, Kurunegala, Sri Lanka',
 ];
 
 const inputClass =

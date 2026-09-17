@@ -15,14 +15,14 @@ const INQUIRIES = [
   },
   {
     name: 'Amal Perera',
-    project: 'Arunalu – Biyagama',
+    project: 'Balummahara',
     type: 'Price & availability',
     message: 'Is there a corner plot still available facing the main road?',
     status: 'New',
   },
   {
     name: 'Dilani Fernando',
-    project: 'Liberty – Kaduwela',
+    project: 'Meerigama',
     type: 'General inquiry',
     message: 'Please share the latest brochure and deed details.',
     status: 'Closed',
