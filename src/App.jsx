@@ -8,6 +8,7 @@ import ManageListings from './pages/ManageListings.jsx';
 import ProjectForm from './pages/ProjectForm.jsx';
 import UserManagement from './pages/UserManagement.jsx';
 import Inquiries from './pages/Inquiries.jsx';
+import PropertyUpdates from './pages/PropertyUpdates.jsx';
 import Login from './pages/Login.jsx';
 
 function Splash() {
@@ -44,6 +45,7 @@ export default function App() {
         <Route path="/listings" element={<ManageListings />} />
         <Route path="/listings/new" element={<ProjectForm />} />
         <Route path="/listings/:id/edit" element={<ProjectForm />} />
+        <Route path="/property-updates" element={<PropertyUpdates />} />
         <Route
           path="/users"
           element={
