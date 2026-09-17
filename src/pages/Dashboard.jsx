@@ -6,6 +6,7 @@ import {
   HiOutlineOfficeBuilding,
   HiOutlineUsers,
   HiOutlineChatAlt2,
+  HiOutlineLocationMarker,
   HiArrowRight,
 } from 'react-icons/hi';
 import { fetchReviews } from '../api/reviews.js';
@@ -13,6 +14,7 @@ import { fetchBlogs } from '../api/blogs.js';
 import { fetchUsers } from '../api/users.js';
 import { fetchProjects } from '../api/projects.js';
 import { fetchMailStatus, sendTestMailRequest } from '../api/auth.js';
+import { fetchLandUpdates } from '../api/landUpdates.js';
 import StarRating from '../components/StarRating.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -23,22 +25,27 @@ export default function Dashboard() {
   const [staffCount, setStaffCount] = useState(null);
   const [listingCount, setListingCount] = useState(null);
   const [pendingListings, setPendingListings] = useState(0);
+  const [landUpdateCount, setLandUpdateCount] = useState(null);
+  const [newLandUpdates, setNewLandUpdates] = useState(0);
   const [mail, setMail] = useState(null);
   const [mailNotice, setMailNotice] = useState('');
   const [mailBusy, setMailBusy] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const jobs = [fetchReviews(), fetchBlogs(), fetchProjects({ all: true }), fetchMailStatus()];
+    const jobs = [fetchReviews(), fetchBlogs(), fetchProjects({ all: true }), fetchMailStatus(), fetchLandUpdates()];
     if (isAdmin) jobs.push(fetchUsers('active'));
     Promise.all(jobs)
-      .then(([nextReviews, nextBlogs, nextProjects, nextMail, nextUsers]) => {
+      .then(([nextReviews, nextBlogs, nextProjects, nextMail, nextLandUpdates, nextUsers]) => {
         setReviews(nextReviews);
         setBlogs(nextBlogs);
         setMail(nextMail);
         const listings = (nextProjects || []).filter((item) => item.rowStatus !== 'deleted');
         setListingCount(listings.length);
         setPendingListings(listings.filter((item) => item.approvalStatus === 'pending').length);
+        const updates = nextLandUpdates || [];
+        setLandUpdateCount(updates.length);
+        setNewLandUpdates(updates.filter((item) => item.status === 'new').length);
         if (Array.isArray(nextUsers)) setStaffCount(nextUsers.length);
       })
       .catch((err) => setError(err.message));
@@ -148,6 +155,25 @@ export default function Dashboard() {
           <p className="font-display font-bold text-3xl text-myland-ink">{listingCount ?? '—'}</p>
           <p className="text-sm text-myland-slate mt-1">
             Project listings{pendingListings ? ` · ${pendingListings} pending` : ''}
+          </p>
+        </Link>
+        <Link
+          to="/property-updates"
+          className="bg-white rounded-xl3 p-5 shadow-card border border-myland-mist/80 hover:border-myland-red/40 transition-colors"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <span className="w-10 h-10 rounded-full bg-myland-cream text-myland-ink flex items-center justify-center">
+              <HiOutlineLocationMarker className="text-lg" />
+            </span>
+            {newLandUpdates ? (
+              <span className="text-[11px] font-display font-semibold uppercase tracking-wide text-myland-red">
+                New
+              </span>
+            ) : null}
+          </div>
+          <p className="font-display font-bold text-3xl text-myland-ink">{landUpdateCount ?? '—'}</p>
+          <p className="text-sm text-myland-slate mt-1">
+            Property updates{newLandUpdates ? ` · ${newLandUpdates} new` : ''}
           </p>
         </Link>
         {!isAdmin && (
