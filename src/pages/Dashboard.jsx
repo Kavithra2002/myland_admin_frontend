@@ -15,6 +15,7 @@ import { fetchBlogs } from '../api/blogs.js';
 import { fetchUsers } from '../api/users.js';
 import { fetchProjects } from '../api/projects.js';
 import { fetchLandUpdates } from '../api/landUpdates.js';
+import { fetchInquiries } from '../api/inquiries.js';
 import StarRating from '../components/StarRating.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -27,13 +28,21 @@ export default function Dashboard() {
   const [pendingListings, setPendingListings] = useState(0);
   const [landUpdateCount, setLandUpdateCount] = useState(null);
   const [newLandUpdates, setNewLandUpdates] = useState(0);
+  const [inquiryCount, setInquiryCount] = useState(null);
+  const [newInquiries, setNewInquiries] = useState(0);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const jobs = [fetchReviews(), fetchBlogs(), fetchProjects({ all: true }), fetchLandUpdates()];
+    const jobs = [
+      fetchReviews(),
+      fetchBlogs(),
+      fetchProjects({ all: true }),
+      fetchLandUpdates(),
+      fetchInquiries(),
+    ];
     if (isAdmin) jobs.push(fetchUsers('active'));
     Promise.all(jobs)
-      .then(([nextReviews, nextBlogs, nextProjects, nextLandUpdates, nextUsers]) => {
+      .then(([nextReviews, nextBlogs, nextProjects, nextLandUpdates, nextInquiries, nextUsers]) => {
         setReviews(nextReviews);
         setBlogs(nextBlogs);
         const listings = (nextProjects || []).filter((item) => item.rowStatus !== 'deleted');
@@ -42,6 +51,9 @@ export default function Dashboard() {
         const updates = nextLandUpdates || [];
         setLandUpdateCount(updates.length);
         setNewLandUpdates(updates.filter((item) => item.status === 'new').length);
+        const inquiries = nextInquiries || [];
+        setInquiryCount(inquiries.filter((item) => item.status !== 'deleted').length);
+        setNewInquiries(inquiries.filter((item) => item.status === 'new').length);
         if (Array.isArray(nextUsers)) setStaffCount(nextUsers.length);
       })
       .catch((err) => setError(err.message));
@@ -143,15 +155,25 @@ export default function Dashboard() {
             <p className="text-sm text-myland-slate mt-1">Upload a land photo, enhance it, then copy or download</p>
           </Link>
         )}
-        {!isAdmin && (
-          <div className="bg-white rounded-xl3 p-5 shadow-card border border-myland-mist/80">
-            <span className="w-10 h-10 rounded-full bg-myland-cream text-myland-ink flex items-center justify-center mb-4">
+        <Link
+          to="/inquiries"
+          className="bg-white rounded-xl3 p-5 shadow-card border border-myland-mist/80 hover:border-myland-red/40 transition-colors"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <span className="w-10 h-10 rounded-full bg-myland-cream text-myland-ink flex items-center justify-center">
               <HiOutlineChatAlt2 className="text-lg" />
             </span>
-            <p className="font-display font-bold text-3xl text-myland-ink">4</p>
-            <p className="text-sm text-myland-slate mt-1">Open inquiries</p>
+            {newInquiries ? (
+              <span className="text-[11px] font-display font-semibold uppercase tracking-wide text-myland-red">
+                New
+              </span>
+            ) : null}
           </div>
-        )}
+          <p className="font-display font-bold text-3xl text-myland-ink">{inquiryCount ?? '—'}</p>
+          <p className="text-sm text-myland-slate mt-1">
+            Inquiries{newInquiries ? ` · ${newInquiries} new` : ''}
+          </p>
+        </Link>
       </div>
 
       <section className="bg-white rounded-xl3 p-6 shadow-card border border-myland-mist/80">
