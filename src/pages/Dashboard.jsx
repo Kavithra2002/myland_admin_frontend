@@ -12,15 +12,16 @@ import {
   HiOutlineMail,
   HiOutlinePhone,
   HiOutlineDuplicate,
+  HiOutlineTrash,
 } from 'react-icons/hi';
 import { fetchReviews } from '../api/reviews.js';
 import { fetchBlogs } from '../api/blogs.js';
 import { fetchUsers } from '../api/users.js';
 import { fetchProjects } from '../api/projects.js';
 import { fetchLandUpdates } from '../api/landUpdates.js';
-import { fetchInquiries } from '../api/inquiries.js';
+import { deleteInquiry, fetchInquiries } from '../api/inquiries.js';
 import { fetchHeartSummary } from '../api/favorites.js';
-import { fetchSubscribers } from '../api/newsletter.js';
+import { clearSubscribers, deleteSubscriber, fetchSubscribers } from '../api/newsletter.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
 function formatDate(value) {
@@ -48,7 +49,7 @@ const STATUS_LABELS = {
   closed: 'Closed',
 };
 
-function SubscriberRow({ item, onCopy, copied }) {
+function SubscriberRow({ item, onCopy, copied, onClear, clearing }) {
   return (
     <li className="flex items-center gap-2 h-[52px] shrink-0">
       <div className="min-w-0 flex-1">
@@ -59,14 +60,27 @@ function SubscriberRow({ item, onCopy, copied }) {
       </div>
       <button
         type="button"
+        disabled={clearing}
         onClick={(event) => {
           event.stopPropagation();
           onCopy(item);
         }}
-        className="inline-flex items-center gap-1 rounded-full border border-myland-mist px-3 py-1.5 text-[11px] font-display font-semibold text-myland-ink shrink-0 hover:border-myland-red/40"
+        className="inline-flex items-center gap-1 rounded-full border border-myland-mist px-3 py-1.5 text-[11px] font-display font-semibold text-myland-ink shrink-0 hover:border-myland-red/40 disabled:opacity-40"
       >
         <HiOutlineDuplicate className="text-sm" />
         {copied ? 'Copied' : 'Copy'}
+      </button>
+      <button
+        type="button"
+        disabled={clearing}
+        onClick={(event) => {
+          event.stopPropagation();
+          onClear(item);
+        }}
+        className="inline-flex items-center gap-1 rounded-full border border-myland-mist px-3 py-1.5 text-[11px] font-display font-semibold text-myland-red shrink-0 hover:border-myland-red disabled:opacity-40"
+      >
+        <HiOutlineTrash className="text-sm" />
+        Clear
       </button>
     </li>
   );
@@ -89,6 +103,10 @@ export default function Dashboard() {
   const [subscribers, setSubscribers] = useState([]);
   const [copiedAll, setCopiedAll] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
+  const [emailBusy, setEmailBusy] = useState('');
+  const [confirmClear, setConfirmClear] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [messageBusy, setMessageBusy] = useState(false);
   const [emailsOpen, setEmailsOpen] = useState(false);
   const [error, setError] = useState('');
   const heartsRef = useRef(null);
@@ -170,6 +188,64 @@ export default function Dashboard() {
       }, 1800);
     } catch {
       /* ignore */
+    }
+  };
+
+  const removeSubscriber = async (item) => {
+    if (!item?.id || emailBusy) return;
+    setEmailBusy(item.id);
+    try {
+      await deleteSubscriber(item.id);
+      setSubscribers((prev) => {
+        const next = prev.filter((row) => row.id !== item.id);
+        if (next.length <= 1) setEmailsOpen(false);
+        return next;
+      });
+      if (copiedId === item.id) setCopiedId(null);
+      setConfirmClear(null);
+    } catch (err) {
+      setError(err.message || 'Could not clear email');
+      setConfirmClear(null);
+    } finally {
+      setEmailBusy('');
+    }
+  };
+
+  const removeAllSubscribers = async () => {
+    if (emailBusy || !subscribers.length) return;
+    setEmailBusy('all');
+    try {
+      await clearSubscribers();
+      setSubscribers([]);
+      setCopiedAll(false);
+      setCopiedId(null);
+      setEmailsOpen(false);
+      setConfirmClear(null);
+    } catch (err) {
+      setError(err.message || 'Could not clear emails');
+      setConfirmClear(null);
+    } finally {
+      setEmailBusy('');
+    }
+  };
+
+  const removeContactMessage = async (item) => {
+    if (!item?.id || messageBusy) return;
+    setMessageBusy(true);
+    setError('');
+    try {
+      await deleteInquiry(item.id);
+      setContactMessages((prev) => prev.filter((row) => row.id !== item.id));
+      setInquiryCount((count) => (typeof count === 'number' ? Math.max(0, count - 1) : count));
+      if (item.status === 'new') {
+        setNewInquiries((count) => Math.max(0, count - 1));
+      }
+      setConfirmDelete(null);
+    } catch (err) {
+      setError(err.message || 'Could not delete message');
+      setConfirmDelete(null);
+    } finally {
+      setMessageBusy(false);
     }
   };
 
@@ -366,11 +442,23 @@ export default function Dashboard() {
                 <button
                   type="button"
                   onClick={copyAllEmails}
-                  disabled={!subscribers.length}
+                  disabled={!subscribers.length || Boolean(emailBusy)}
                   className="inline-flex items-center gap-1.5 rounded-full border border-myland-mist px-3 py-1.5 text-[11px] font-display font-semibold text-myland-ink disabled:opacity-40 hover:border-myland-red/40"
                 >
                   <HiOutlineDuplicate className="text-sm" />
                   {copiedAll ? 'Copied' : 'Copy all'}
+                </button>
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setConfirmClear('all');
+                  }}
+                  disabled={!subscribers.length || Boolean(emailBusy)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-myland-mist px-3 py-1.5 text-[11px] font-display font-semibold text-myland-red disabled:opacity-40 hover:border-myland-red"
+                >
+                  <HiOutlineTrash className="text-sm" />
+                  Clear all
                 </button>
                 <button
                   type="button"
@@ -399,6 +487,8 @@ export default function Dashboard() {
                   item={subscribers[0]}
                   onCopy={copyEmail}
                   copied={copiedId === subscribers[0].id}
+                  onClear={setConfirmClear}
+                  clearing={emailBusy === subscribers[0].id || emailBusy === 'all'}
                 />
               </ul>
             )}
@@ -425,6 +515,8 @@ export default function Dashboard() {
                       item={item}
                       onCopy={copyEmail}
                       copied={copiedId === item.id}
+                      onClear={setConfirmClear}
+                      clearing={emailBusy === item.id || emailBusy === 'all'}
                     />
                   ))}
                 </ul>
@@ -455,6 +547,7 @@ export default function Dashboard() {
                 <th className="py-3 px-2 font-semibold">Message</th>
                 <th className="py-3 px-2 font-semibold">Sent</th>
                 <th className="py-3 px-2 font-semibold">Status</th>
+                <th className="py-3 px-2 font-semibold"> </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-myland-mist">
@@ -498,11 +591,22 @@ export default function Dashboard() {
                       {STATUS_LABELS[item.status] || item.status}
                     </span>
                   </td>
+                  <td className="py-3.5 px-2">
+                    <button
+                      type="button"
+                      disabled={messageBusy}
+                      onClick={() => setConfirmDelete(item)}
+                      className="inline-flex items-center gap-1 rounded-full border border-myland-mist px-3 py-1.5 text-[11px] font-display font-semibold text-myland-red shrink-0 hover:border-myland-red disabled:opacity-40"
+                    >
+                      <HiOutlineTrash className="text-sm" />
+                      Delete
+                    </button>
+                  </td>
                 </tr>
               ))}
               {contactMessages.length === 0 && !error && (
                 <tr>
-                  <td colSpan={6} className="py-10 text-sm text-myland-slate text-center">
+                  <td colSpan={7} className="py-10 text-sm text-myland-slate text-center">
                     No contact form messages yet.
                   </td>
                 </tr>
@@ -511,6 +615,111 @@ export default function Dashboard() {
           </table>
         </div>
       </section>
+
+      {confirmClear ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-myland-ink/40"
+            aria-label="Cancel"
+            onClick={() => !emailBusy && setConfirmClear(null)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="clear-emails-title"
+            className="relative w-full max-w-md bg-white rounded-xl3 p-6 shadow-card"
+          >
+            <h3 id="clear-emails-title" className="font-display font-semibold text-lg text-myland-ink">
+              {confirmClear === 'all' ? 'Clear all plot alert emails?' : 'Clear this email?'}
+            </h3>
+            <p className="text-sm text-myland-slate mt-2">
+              {confirmClear === 'all'
+                ? `This removes all ${subscribers.length} subscribed emails from the list.`
+                : 'This removes the address from the plot alert list.'}
+            </p>
+            {confirmClear !== 'all' ? (
+              <div className="mt-4 rounded-2xl bg-myland-cream px-4 py-3">
+                <p className="font-display font-semibold text-sm text-myland-ink break-all">
+                  {confirmClear.email}
+                </p>
+              </div>
+            ) : null}
+            <div className="flex flex-wrap gap-2 mt-5">
+              <button
+                type="button"
+                disabled={Boolean(emailBusy)}
+                onClick={() =>
+                  confirmClear === 'all' ? removeAllSubscribers() : removeSubscriber(confirmClear)
+                }
+                className="inline-flex items-center justify-center rounded-full bg-myland-red text-white font-display font-semibold text-xs px-5 py-2.5 hover:bg-myland-redDark disabled:opacity-50"
+              >
+                {emailBusy ? 'Clearing…' : confirmClear === 'all' ? 'Yes, clear all' : 'Yes, clear'}
+              </button>
+              <button
+                type="button"
+                disabled={Boolean(emailBusy)}
+                onClick={() => setConfirmClear(null)}
+                className="btn-ghost !py-2.5 !px-5 !text-xs"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {confirmDelete ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-myland-ink/40"
+            aria-label="Cancel"
+            onClick={() => !messageBusy && setConfirmDelete(null)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-message-title"
+            className="relative w-full max-w-md bg-white rounded-xl3 p-6 shadow-card"
+          >
+            <h3 id="delete-message-title" className="font-display font-semibold text-lg text-myland-ink">
+              Delete this contact message?
+            </h3>
+            <p className="text-sm text-myland-slate mt-2">
+              This removes the message from the dashboard contact list.
+            </p>
+            <div className="mt-4 rounded-2xl bg-myland-cream px-4 py-3">
+              <p className="font-display font-semibold text-sm text-myland-ink">
+                {confirmDelete.name || 'Website visitor'}
+              </p>
+              <p className="text-xs text-myland-slate mt-1 break-all">
+                {confirmDelete.email || confirmDelete.phone || 'No contact details'}
+              </p>
+              {confirmDelete.message ? (
+                <p className="text-sm text-myland-slate mt-2 line-clamp-3">{confirmDelete.message}</p>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap gap-2 mt-5">
+              <button
+                type="button"
+                disabled={messageBusy}
+                onClick={() => removeContactMessage(confirmDelete)}
+                className="inline-flex items-center justify-center rounded-full bg-myland-red text-white font-display font-semibold text-xs px-5 py-2.5 hover:bg-myland-redDark disabled:opacity-50"
+              >
+                {messageBusy ? 'Deleting…' : 'Yes, delete'}
+              </button>
+              <button
+                type="button"
+                disabled={messageBusy}
+                onClick={() => setConfirmDelete(null)}
+                className="btn-ghost !py-2.5 !px-5 !text-xs"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

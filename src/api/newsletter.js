@@ -14,3 +14,14 @@ export async function sendSubscriberMail(id, { subject, message, signal } = {}) 
   });
   return readError(res, 'Could not send email');
 }
+
+export async function deleteSubscriber(id) {
+  const res = await apiFetch(`/api/newsletter/${id}`, { method: 'DELETE' });
+  const data = await readError(res, 'Could not clear email');
+  return data.subscriber;
+}
+
+export async function clearSubscribers() {
+  const res = await apiFetch('/api/newsletter', { method: 'DELETE' });
+  return readError(res, 'Could not clear emails');
+}
