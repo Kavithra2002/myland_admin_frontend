@@ -44,3 +44,48 @@
     @apply max-h-[32rem] md:max-h-[36rem] max-w-full w-auto mx-auto object-contain rounded-2xl;
   }
 }
+
+.warm-image {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  background: #efe8dc;
+}
+
+.warm-image.absolute {
+  position: absolute;
+  inset: 0;
+}
+
+.warm-image-el {
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.warm-image-el.is-ready {
+  opacity: 1;
+}
+
+.warm-image-loader {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.warm-image-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #efe8dc 0%, #f7f1e6 45%, #efe8dc 100%);
+  background-size: 200% 100%;
+  animation: warmImageShimmer 1.15s ease-in-out infinite;
+}
+
+@keyframes warmImageShimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
