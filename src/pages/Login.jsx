@@ -38,7 +38,7 @@ export default function Login() {
     <div className="min-h-screen bg-myland-cream flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md bg-white rounded-xl3 shadow-card border border-myland-mist/80 p-6 md:p-8">
         <div className="flex items-center gap-3 mb-6">
-          <img src={logo} alt="MyLand" className="h-10 w-auto" />
+          <img src={logo} alt="MyLand" className="h-10 w-auto" fetchPriority="high" decoding="async" />
           <div>
             <p className="font-display font-bold text-myland-ink leading-none">myland</p>
             <p className="text-[10px] uppercase tracking-[0.16em] text-myland-slate mt-1">
