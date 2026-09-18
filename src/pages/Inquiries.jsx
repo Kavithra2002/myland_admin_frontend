@@ -235,6 +235,16 @@ export default function Inquiries() {
                   </h2>
 
                   <dl className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                    <Field label="Name">{item.name || '-'}</Field>
+                    <Field label="Email">
+                      {item.email ? (
+                        <a href={`mailto:${item.email}`} className="hover:text-myland-red break-all">
+                          {item.email}
+                        </a>
+                      ) : (
+                        <span className="text-myland-slate font-normal">-</span>
+                      )}
+                    </Field>
                     <Field label="Contact number">
                       {phone ? (
                         <a href={`tel:${phone}`} className="inline-flex items-center gap-2 hover:text-myland-red">
@@ -256,6 +266,11 @@ export default function Inquiries() {
                       )}
                     </Field>
                   </dl>
+                  {item.message ? (
+                    <p className="mt-4 text-sm text-myland-slate leading-relaxed whitespace-pre-wrap">
+                      {item.message}
+                    </p>
+                  ) : null}
                 </div>
 
                 <div className="xl:w-56 shrink-0 flex flex-col gap-2">
