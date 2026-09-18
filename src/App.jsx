@@ -9,7 +9,6 @@ import ProjectForm from './pages/ProjectForm.jsx';
 import UserManagement from './pages/UserManagement.jsx';
 import Inquiries from './pages/Inquiries.jsx';
 import PropertyUpdates from './pages/PropertyUpdates.jsx';
-import ImageBuilder from './pages/ImageBuilder.jsx';
 import Login from './pages/Login.jsx';
 
 function Splash() {
@@ -20,13 +19,12 @@ function Splash() {
   );
 }
 
-function ProtectedRoute({ children, adminOnly = false, staffOnly = false }) {
+function ProtectedRoute({ children, adminOnly = false }) {
   const { user, loading, isAdmin } = useAuth();
   const location = useLocation();
   if (loading) return <Splash />;
   if (!user) return <Navigate to="/login" replace state={{ from: location }} />;
   if (adminOnly && !isAdmin) return <Navigate to="/" replace />;
-  if (staffOnly && isAdmin) return <Navigate to="/" replace />;
   return children;
 }
 
@@ -48,14 +46,6 @@ export default function App() {
         <Route path="/listings/new" element={<ProjectForm />} />
         <Route path="/listings/:id/edit" element={<ProjectForm />} />
         <Route path="/property-updates" element={<PropertyUpdates />} />
-        <Route
-          path="/image-builder"
-          element={
-            <ProtectedRoute staffOnly>
-              <ImageBuilder />
-            </ProtectedRoute>
-          }
-        />
         <Route
           path="/users"
           element={
