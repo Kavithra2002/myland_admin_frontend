@@ -13,7 +13,8 @@ import {
   HiPlay,
 } from 'react-icons/hi';
 import logo from '../assets/myland-logo.png';
-import { isDirectVideo, mapEmbedUrl, youtubeEmbedId } from '../utils/projectMedia.js';
+import WarmImage from './WarmImage.jsx';
+import { isDirectVideo, mapEmbedUrl, mediaSrc, youtubeEmbedId } from '../utils/projectMedia.js';
 
 const BADGE_STYLES = {
   'Hot Offer': 'bg-myland-red text-white',
@@ -64,9 +65,9 @@ function formatStartingPrice(priceFrom) {
 }
 
 function previewGallery(form) {
-  const photos = [form.imageUrl, ...(form.gallery || [])].filter(Boolean);
+  const photos = [form.imageUrl, ...(form.gallery || [])].filter(Boolean).map(mediaSrc);
   const unique = [...new Set(photos)];
-  const plan = form.plotPlanUrl;
+  const plan = form.plotPlanUrl ? mediaSrc(form.plotPlanUrl) : '';
   if (!plan) return unique;
   const without = unique.filter((src) => src !== plan);
   return [...without.slice(0, 7), plan];
@@ -76,7 +77,7 @@ export default function ProjectPagePreview({ form, badges }) {
   const [activeImage, setActiveImage] = useState(0);
   const [activeTab, setActiveTab] = useState('preview-description');
   const gallery = useMemo(() => previewGallery(form), [form.imageUrl, form.gallery, form.plotPlanUrl]);
-  const plotPlanIndex = form.plotPlanUrl ? gallery.lastIndexOf(form.plotPlanUrl) : -1;
+  const plotPlanIndex = form.plotPlanUrl ? gallery.lastIndexOf(mediaSrc(form.plotPlanUrl)) : -1;
   const current = gallery[activeImage] || form.imageUrl;
   const title = form.title || 'Project title';
   const location = form.location || 'Location';
@@ -98,7 +99,7 @@ export default function ProjectPagePreview({ form, badges }) {
     <div className="bg-myland-cream text-myland-ink">
       <div className="bg-white border-b border-myland-mist">
         <div className="flex items-center justify-between gap-3 px-4 md:px-6 py-3">
-          <img src={logo} alt="MyLand" className="h-9 w-auto" />
+          <img src={logo} alt="MyLand" className="h-9 w-auto" fetchPriority="high" decoding="async" />
           <nav className="hidden sm:flex items-center gap-1 text-sm font-display font-semibold">
             <span className="px-3 py-1.5 text-myland-ink">Home</span>
             <span className="px-3 py-1.5 text-myland-ink">About</span>
@@ -159,9 +160,16 @@ export default function ProjectPagePreview({ form, badges }) {
       </section>
 
       <section className="pb-6 px-4 md:px-6">
-        <div className="relative rounded-xl3 overflow-hidden bg-myland-ink shadow-soft">
+        <div className="relative rounded-xl3 overflow-hidden bg-myland-mist shadow-soft">
           {current ? (
-            <img src={current} alt={title} className="w-full h-[240px] sm:h-[320px] md:h-[380px] object-cover" />
+            <WarmImage
+              src={mediaSrc(current)}
+              alt={title}
+              priority
+              lazy={false}
+              className="w-full h-[240px] sm:h-[320px] md:h-[380px] object-cover"
+              wrapperClassName="block w-full h-[240px] sm:h-[320px] md:h-[380px]"
+            />
           ) : (
             <div className="w-full h-[240px] sm:h-[320px] md:h-[380px] bg-myland-mist flex items-center justify-center text-sm text-myland-slate">
               Cover photo appears here
@@ -200,7 +208,7 @@ export default function ProjectPagePreview({ form, badges }) {
                   i === activeImage ? 'ring-2 ring-myland-red ring-offset-2' : 'opacity-75'
                 }`}
               >
-                <img src={src} alt="" className="w-full h-full object-cover" />
+                <WarmImage src={mediaSrc(src)} alt="" className="w-full h-full object-cover" />
                 {i === plotPlanIndex && (
                   <span className="absolute inset-x-0 bottom-0 bg-myland-ink/80 text-white text-[8px] font-display font-semibold uppercase tracking-wider py-0.5">
                     Plot plan
@@ -317,9 +325,9 @@ export default function ProjectPagePreview({ form, badges }) {
 
         <article id="preview-video" className="scroll-mt-16 mt-6 lg:mt-10 bg-white rounded-xl3 p-6 sm:p-8 shadow-card">
           <h2 className="font-display font-semibold text-xl text-myland-ink mb-5">Video</h2>
-          <div className="relative overflow-hidden rounded-xl2 bg-myland-ink aspect-video">
+          <div className="relative overflow-hidden rounded-xl2 bg-myland-mist aspect-video">
             {isDirectVideo(form.videoUrl) ? (
-              <video src={form.videoUrl} controls className="w-full h-full object-cover" />
+              <video src={mediaSrc(form.videoUrl)} controls className="w-full h-full object-cover" />
             ) : youtubeEmbedId(form.videoUrl) ? (
               <iframe
                 title={`${title} walkthrough`}
@@ -331,7 +339,12 @@ export default function ProjectPagePreview({ form, badges }) {
             ) : (
               <>
                 {form.imageUrl ? (
-                  <img src={form.imageUrl} alt={`${title} video`} className="w-full h-full object-cover opacity-80" />
+                  <WarmImage
+                    src={mediaSrc(form.imageUrl)}
+                    alt={`${title} video`}
+                    className="w-full h-full object-cover opacity-80"
+                    wrapperClassName="absolute inset-0"
+                  />
                 ) : (
                   <div className="w-full h-full bg-myland-mist" />
                 )}

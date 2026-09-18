@@ -14,6 +14,7 @@ import {
 } from '../api/projects.js';
 import { fetchAdmins } from '../api/users.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import WarmImage from '../components/WarmImage.jsx';
 import {
   formatDisplayPrice,
   isDirectVideo,
@@ -488,7 +489,7 @@ export default function ProjectForm() {
               <p className="text-xs font-display font-semibold uppercase tracking-wide text-myland-slate mb-2">Main image</p>
               {form.imageUrl ? (
                 <div className="relative rounded-xl overflow-hidden h-44 bg-myland-mist">
-                  <img src={mediaSrc(form.imageUrl)} alt="" className="w-full h-full object-cover" />
+                  <WarmImage src={mediaSrc(form.imageUrl)} alt="" className="w-full h-full object-cover" wrapperClassName="absolute inset-0" />
                   <button
                     type="button"
                     onClick={() => setField('imageUrl', '')}
@@ -516,7 +517,7 @@ export default function ProjectForm() {
               <div className="flex flex-wrap gap-2">
                 {form.gallery.map((src, index) => (
                   <div key={`${src}-${index}`} className="relative w-20 h-20 rounded-xl overflow-hidden bg-myland-mist">
-                    <img src={mediaSrc(src)} alt="" className="w-full h-full object-cover" />
+                    <WarmImage src={mediaSrc(src)} alt="" className="w-full h-full object-cover" wrapperClassName="absolute inset-0" />
                     <button
                       type="button"
                       onClick={() =>
@@ -548,7 +549,7 @@ export default function ProjectForm() {
               <p className="text-xs font-display font-semibold uppercase tracking-wide text-myland-slate mb-2">Plot image</p>
               {form.plotPlanUrl ? (
                 <div className="relative rounded-xl overflow-hidden h-44 bg-myland-mist">
-                  <img src={mediaSrc(form.plotPlanUrl)} alt="" className="w-full h-full object-cover" />
+                  <WarmImage src={mediaSrc(form.plotPlanUrl)} alt="" className="w-full h-full object-cover" wrapperClassName="absolute inset-0" />
                   <button
                     type="button"
                     onClick={() => setField('plotPlanUrl', '')}
