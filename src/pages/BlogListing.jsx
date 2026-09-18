@@ -19,6 +19,7 @@ import {
 } from '../api/blogs.js';
 import { fetchAdmins } from '../api/users.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import WarmImage from '../components/WarmImage.jsx';
 
 const TOPICS = ['Site visits', 'Titles', 'Districts', 'Loans', 'Investment', 'Journal', 'Guides'];
 const LAYOUTS = [
@@ -716,7 +717,7 @@ export default function BlogListing() {
                   </p>
                 </div>
               ) : (
-                <img
+                <WarmImage
                   src={form.imageUrl}
                   alt=""
                   className="w-full h-full object-cover"
@@ -807,7 +808,7 @@ export default function BlogListing() {
             >
               <div className="flex flex-col md:flex-row gap-4">
                 <div className="w-full md:w-44 h-32 rounded-xl2 overflow-hidden bg-myland-cream shrink-0">
-                  <img src={blog.image} alt="" className="w-full h-full object-cover" />
+                  <WarmImage src={blog.image} alt="" className="w-full h-full object-cover" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2 mb-2">

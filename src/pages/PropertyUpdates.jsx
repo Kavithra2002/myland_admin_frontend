@@ -13,6 +13,7 @@ import { FaWhatsapp } from 'react-icons/fa';
 import { deleteLandUpdate, fetchLandUpdates, setLandUpdateStatus } from '../api/landUpdates.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { mediaSrc } from '../utils/projectMedia.js';
+import WarmImage from '../components/WarmImage.jsx';
 
 const BASE_FILTERS = [
   { id: 'all', label: 'All' },
@@ -281,12 +282,13 @@ export default function PropertyUpdates() {
                             key={`${item.id}-${src}-${index}`}
                             type="button"
                             onClick={() => setLightbox({ photos: item.photos, index, name: item.name })}
-                            className="aspect-square rounded-xl overflow-hidden bg-myland-mist border border-myland-mist hover:border-myland-red/40"
+                            className="relative aspect-square rounded-xl overflow-hidden bg-myland-mist border border-myland-mist hover:border-myland-red/40"
                           >
-                            <img
+                            <WarmImage
                               src={mediaSrc(src)}
                               alt={`${item.name} land photo ${index + 1}`}
                               className="w-full h-full object-cover"
+                              wrapperClassName="absolute inset-0"
                             />
                           </button>
                         ))}
@@ -464,10 +466,13 @@ export default function PropertyUpdates() {
               </button>
             </>
           ) : null}
-          <img
+          <WarmImage
             src={mediaSrc(lightbox.photos[lightbox.index])}
             alt={`${lightbox.name} land photo ${lightbox.index + 1}`}
+            priority
+            lazy={false}
             className="max-h-[88vh] max-w-full rounded-2xl object-contain"
+            wrapperClassName="!bg-transparent !overflow-visible w-auto h-auto max-h-[88vh]"
             onClick={(event) => event.stopPropagation()}
           />
           {lightbox.photos.length > 1 ? (
