@@ -64,26 +64,21 @@ function isBlankNumber(value) {
   return raw.replace(/\D/g, '').length < 9;
 }
 
-function viaWhatsApp(item) {
-  if (item.source === 'whatsapp') return true;
-  return !isBlankNumber(item.whatsapp) && isBlankNumber(item.phone);
-}
-
 function contactNumber(item) {
-  if (viaWhatsApp(item) || isBlankNumber(item.phone)) return '';
+  if (item.source === 'whatsapp' || isBlankNumber(item.phone)) return '';
   return String(item.phone).trim();
 }
 
 function whatsappNumber(item) {
-  if (!viaWhatsApp(item)) return '';
-  const value = isBlankNumber(item.whatsapp) ? item.phone : item.whatsapp;
-  return isBlankNumber(value) ? '' : String(value).trim();
+  if (!isBlankNumber(item.whatsapp)) return String(item.whatsapp).trim();
+  if (item.source === 'whatsapp' && !isBlankNumber(item.phone)) {
+    return String(item.phone).trim();
+  }
+  return '';
 }
 
 function actionNumber(item) {
-  const phone = isBlankNumber(item.phone) ? '' : String(item.phone).trim();
-  const wa = isBlankNumber(item.whatsapp) ? '' : String(item.whatsapp).trim();
-  return phone || wa || '';
+  return contactNumber(item) || whatsappNumber(item);
 }
 
 function Field({ label, children }) {
