@@ -30,7 +30,7 @@ const PAYMENT_OPTIONS = [
     Icon: HiOutlineCurrencyDollar,
   },
   {
-    title: 'MyLand easy payment scheme',
+    title: 'Myland easy payment scheme',
     body: 'Pay 40% within 30 days of reservation, then settle the rest in monthly instalments for up to 18 months.',
     Icon: HiOutlineCalendar,
   },
@@ -99,7 +99,7 @@ export default function ProjectPagePreview({ form, badges }) {
     <div className="bg-myland-cream text-myland-ink">
       <div className="bg-white border-b border-myland-mist">
         <div className="flex items-center justify-between gap-3 px-4 md:px-6 py-3">
-          <img src={logo} alt="MyLand" className="h-9 w-auto" fetchPriority="high" decoding="async" />
+          <img src={logo} alt="Myland" className="h-9 w-auto" fetchPriority="high" decoding="async" />
           <nav className="hidden sm:flex items-center gap-1 text-sm font-display font-semibold">
             <span className="px-3 py-1.5 text-myland-ink">Home</span>
             <span className="px-3 py-1.5 text-myland-ink">About</span>
