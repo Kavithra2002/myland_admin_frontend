@@ -9,6 +9,7 @@ import {
   HiOutlineLocationMarker,
   HiHeart,
   HiChevronDown,
+  HiChevronUp,
   HiOutlineMail,
   HiOutlinePhone,
   HiOutlineDuplicate,
@@ -48,6 +49,10 @@ const STATUS_LABELS = {
   in_progress: 'In progress',
   closed: 'Closed',
 };
+
+const CONTACT_VISIBLE_ROWS = 10;
+const CONTACT_ROW_PX = 58;
+const CONTACT_HEAD_PX = 42;
 
 function SubscriberRow({ item, onCopy, copied, onClear, clearing }) {
   return (
@@ -111,6 +116,7 @@ export default function Dashboard() {
   const [error, setError] = useState('');
   const heartsRef = useRef(null);
   const emailsRef = useRef(null);
+  const messagesRef = useRef(null);
 
   useEffect(() => {
     const jobs = [
@@ -247,6 +253,13 @@ export default function Dashboard() {
     } finally {
       setMessageBusy(false);
     }
+  };
+
+  const scrollContactMessages = (direction) => {
+    messagesRef.current?.scrollBy({
+      top: direction * CONTACT_ROW_PX * 3,
+      behavior: 'smooth',
+    });
   };
 
   const pending = reviews.filter((item) => item.status === 'pending').length;
@@ -529,17 +542,51 @@ export default function Dashboard() {
       {error && <p className="text-myland-red text-sm">{error}</p>}
 
       <section className="bg-white rounded-xl3 p-6 shadow-card border border-myland-mist/80">
-        <div className="mb-5">
-          <h2 className="font-display font-semibold text-lg text-myland-ink">Contact messages</h2>
-          <p className="text-sm text-myland-slate mt-1">
-            Visitors who sent a message from the website contact form
-            {contactMessages.length ? ` · ${contactMessages.length} total` : ''}
-          </p>
+        <div className="mb-5 flex items-start justify-between gap-3">
+          <div>
+            <h2 className="font-display font-semibold text-lg text-myland-ink">Contact messages</h2>
+            <p className="text-sm text-myland-slate mt-1">
+              Visitors who sent a message from the website contact form
+              {contactMessages.length ? ` · ${contactMessages.length} total` : ''}
+            </p>
+          </div>
+          {contactMessages.length > CONTACT_VISIBLE_ROWS ? (
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => scrollContactMessages(-1)}
+                className="w-8 h-8 rounded-full border border-myland-mist text-myland-ink flex items-center justify-center hover:border-myland-red/40"
+                aria-label="Scroll up"
+              >
+                <HiChevronUp className="text-lg" />
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollContactMessages(1)}
+                className="w-8 h-8 rounded-full border border-myland-mist text-myland-ink flex items-center justify-center hover:border-myland-red/40"
+                aria-label="Scroll down"
+              >
+                <HiChevronDown className="text-lg" />
+              </button>
+            </div>
+          ) : null}
         </div>
 
-        <div className="overflow-x-auto -mx-2">
+        <div
+          ref={messagesRef}
+          className={`-mx-2 ${
+            contactMessages.length > CONTACT_VISIBLE_ROWS
+              ? 'overflow-auto overscroll-contain'
+              : 'overflow-x-auto'
+          }`}
+          style={
+            contactMessages.length > CONTACT_VISIBLE_ROWS
+              ? { maxHeight: CONTACT_HEAD_PX + CONTACT_ROW_PX * CONTACT_VISIBLE_ROWS }
+              : undefined
+          }
+        >
           <table className="w-full min-w-[720px] text-left">
-            <thead>
+            <thead className="sticky top-0 z-10 bg-white">
               <tr className="text-[11px] uppercase tracking-wide text-myland-slate font-display font-semibold border-b border-myland-mist">
                 <th className="py-3 px-2 font-semibold">Name</th>
                 <th className="py-3 px-2 font-semibold">Phone</th>
@@ -552,11 +599,13 @@ export default function Dashboard() {
             </thead>
             <tbody className="divide-y divide-myland-mist">
               {contactMessages.map((item) => (
-                <tr key={item.id} className="align-top">
-                  <td className="py-3.5 px-2">
-                    <p className="font-display font-semibold text-sm text-myland-ink">{item.name || '—'}</p>
+                <tr key={item.id} className="h-[58px]">
+                  <td className="px-2">
+                    <p className="font-display font-semibold text-sm text-myland-ink truncate">
+                      {item.name || '—'}
+                    </p>
                   </td>
-                  <td className="py-3.5 px-2 text-sm text-myland-ink">
+                  <td className="px-2 text-sm text-myland-ink whitespace-nowrap">
                     {item.phone ? (
                       <a href={`tel:${item.phone}`} className="inline-flex items-center gap-1.5 hover:text-myland-red">
                         <HiOutlinePhone className="text-myland-red shrink-0" />
@@ -566,9 +615,9 @@ export default function Dashboard() {
                       <span className="text-myland-slate">—</span>
                     )}
                   </td>
-                  <td className="py-3.5 px-2 text-sm text-myland-ink">
+                  <td className="px-2 text-sm text-myland-ink">
                     {item.email ? (
-                      <a href={`mailto:${item.email}`} className="inline-flex items-center gap-1.5 hover:text-myland-red break-all">
+                      <a href={`mailto:${item.email}`} className="inline-flex items-center gap-1.5 hover:text-myland-red truncate max-w-[220px]">
                         <HiOutlineMail className="text-myland-red shrink-0" />
                         {item.email}
                       </a>
@@ -576,13 +625,13 @@ export default function Dashboard() {
                       <span className="text-myland-slate">—</span>
                     )}
                   </td>
-                  <td className="py-3.5 px-2 text-sm text-myland-slate max-w-xs">
-                    <p className="line-clamp-2">{item.message || '—'}</p>
+                  <td className="px-2 text-sm text-myland-slate max-w-xs">
+                    <p className="truncate">{item.message || '—'}</p>
                   </td>
-                  <td className="py-3.5 px-2 text-xs text-myland-slate whitespace-nowrap">
+                  <td className="px-2 text-xs text-myland-slate whitespace-nowrap">
                     {formatDate(item.createdAt)}
                   </td>
-                  <td className="py-3.5 px-2">
+                  <td className="px-2">
                     <span
                       className={`text-[10px] font-display font-semibold uppercase tracking-wide rounded-full px-2.5 py-1 ${
                         STATUS_STYLES[item.status] || 'bg-myland-mist text-myland-slate'
@@ -591,7 +640,7 @@ export default function Dashboard() {
                       {STATUS_LABELS[item.status] || item.status}
                     </span>
                   </td>
-                  <td className="py-3.5 px-2">
+                  <td className="px-2">
                     <button
                       type="button"
                       disabled={messageBusy}
