@@ -55,7 +55,7 @@ function whatsappHref(phone, text) {
 
 function whatsappMessage(item) {
   const project = item.projectTitle ? ` about ${item.projectTitle}` : '';
-  return `Hello, this is MyLand following up${project}.`;
+  return `Hello, this is Myland following up${project}.`;
 }
 
 function isBlankNumber(value) {

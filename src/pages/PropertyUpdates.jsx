@@ -55,7 +55,7 @@ export function whatsappHref(phone, text) {
 
 function whatsappMessage(item) {
   const place = item.location ? ` at ${item.location}` : '';
-  return `Hello ${item.name || ''}, this is MyLand regarding the land you submitted${place}.`;
+  return `Hello ${item.name || ''}, this is Myland regarding the land you submitted${place}.`;
 }
 
 function Field({ label, children }) {
