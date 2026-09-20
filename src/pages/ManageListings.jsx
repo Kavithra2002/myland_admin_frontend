@@ -4,6 +4,7 @@ import { HiOutlinePencil, HiOutlinePlus, HiOutlineTrash, HiX } from 'react-icons
 import { fetchProjects, reviewProject, submitProjectChange } from '../api/projects.js';
 import { fetchAdmins } from '../api/users.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import AboutGalleryEditor from '../components/AboutGalleryEditor.jsx';
 
 const STATUS_STYLES = {
   'For Sale': 'bg-myland-red/10 text-myland-red',
@@ -132,6 +133,8 @@ export default function ManageListings() {
 
   return (
     <div className="space-y-6">
+      <AboutGalleryEditor />
+
       <div className="bg-white rounded-xl3 shadow-card border border-myland-mist/80 overflow-hidden">
         <div className="px-6 py-5 border-b border-myland-mist flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div>
