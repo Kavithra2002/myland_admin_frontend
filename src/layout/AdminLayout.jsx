@@ -57,7 +57,7 @@ export default function AdminLayout() {
     <div className="min-h-screen bg-myland-cream flex">
       <aside className="hidden md:flex w-64 shrink-0 flex-col bg-white border-r border-myland-mist">
         <div className="flex items-center gap-3 px-6 py-5 border-b border-myland-mist">
-          <img src={logo} alt="MyLand" className="h-9 w-auto" fetchPriority="high" decoding="async" />
+          <img src={logo} alt="Myland" className="h-9 w-auto" fetchPriority="high" decoding="async" />
           <div>
             <p className="font-display font-bold text-sm text-myland-ink leading-none">myland</p>
             <p className="text-[10px] uppercase tracking-[0.16em] text-myland-slate mt-1">Admin</p>
@@ -95,7 +95,7 @@ export default function AdminLayout() {
           <div className="flex items-center justify-between gap-4 px-4 md:px-8 py-4">
             <div>
               <p className="text-[10px] uppercase tracking-[0.18em] text-myland-red font-semibold">
-                MyLand Admin
+                Myland Admin
               </p>
               <h1 className="font-display font-bold text-xl text-myland-ink">
                 {pageTitle(pathname)}
