@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import {
   HiOutlinePencil,
   HiOutlinePlus,
@@ -19,6 +20,7 @@ import {
 } from '../api/blogs.js';
 import { fetchAdmins } from '../api/users.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useSiteSettings } from '../context/SiteSettingsContext.jsx';
 import WarmImage from '../components/WarmImage.jsx';
 
 const TOPICS = ['Site visits', 'Titles', 'Districts', 'Loans', 'Investment', 'Journal', 'Guides'];
@@ -238,6 +240,7 @@ function needsAdminPicker(type) {
 
 export default function BlogListing() {
   const { isAdmin, user } = useAuth();
+  const { blogPageEnabled, loading: settingsLoading } = useSiteSettings();
   const [blogs, setBlogs] = useState([]);
   const [admins, setAdmins] = useState([]);
   const [filter, setFilter] = useState('cover');
@@ -507,6 +510,10 @@ export default function BlogListing() {
       ...extra,
     });
   };
+
+  if (isAdmin && !settingsLoading && !blogPageEnabled) {
+    return <Navigate to="/" replace />;
+  }
 
   return (
     <div className="space-y-6">

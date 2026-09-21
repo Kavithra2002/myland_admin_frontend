@@ -1,4 +1,5 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import {
   HiOutlineHome,
   HiOutlineStar,
@@ -11,11 +12,12 @@ import {
 } from 'react-icons/hi';
 import logo from '../assets/myland-logo.png';
 import { useAuth } from '../context/AuthContext.jsx';
+import { SiteSettingsProvider, useSiteSettings } from '../context/SiteSettingsContext.jsx';
 
 const NAV = [
   { to: '/', label: 'Dashboard', icon: HiOutlineHome, end: true },
   { to: '/reviews', label: 'Review Authorizer', icon: HiOutlineStar },
-  { to: '/blogs', label: 'Blog Listing', icon: HiOutlineBookOpen },
+  { to: '/blogs', label: 'Blog Listing', icon: HiOutlineBookOpen, requiresBlogPage: true },
   { to: '/listings', label: 'Manage Listings', icon: HiOutlineOfficeBuilding },
   { to: '/property-updates', label: 'Property Updates', icon: HiOutlineLocationMarker },
   { to: '/users', label: 'User Management', icon: HiOutlineUsers, adminOnly: true },
@@ -47,11 +49,22 @@ function initials(name) {
   return parts.map((part) => part[0]).join('').toUpperCase() || 'ML';
 }
 
-export default function AdminLayout() {
+function AdminShell() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { user, isAdmin, logout } = useAuth();
-  const nav = NAV.filter((item) => (item.adminOnly ? isAdmin : true));
+  const { blogPageEnabled, loading } = useSiteSettings();
+  const nav = NAV.filter((item) => {
+    if (item.adminOnly && !isAdmin) return false;
+    if (item.requiresBlogPage && isAdmin && !blogPageEnabled) return false;
+    return true;
+  });
+
+  useEffect(() => {
+    if (!loading && isAdmin && !blogPageEnabled && pathname.startsWith('/blogs')) {
+      navigate('/', { replace: true });
+    }
+  }, [blogPageEnabled, loading, isAdmin, pathname, navigate]);
 
   return (
     <div className="min-h-screen bg-myland-cream flex">
@@ -145,5 +158,13 @@ export default function AdminLayout() {
         </main>
       </div>
     </div>
+  );
+}
+
+export default function AdminLayout() {
+  return (
+    <SiteSettingsProvider>
+      <AdminShell />
+    </SiteSettingsProvider>
   );
 }
