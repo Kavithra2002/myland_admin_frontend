@@ -24,6 +24,7 @@ import { deleteInquiry, fetchInquiries } from '../api/inquiries.js';
 import { fetchHeartSummary } from '../api/favorites.js';
 import { clearSubscribers, deleteSubscriber, fetchSubscribers } from '../api/newsletter.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useSiteSettings } from '../context/SiteSettingsContext.jsx';
 
 function formatDate(value) {
   if (!value) return '—';
@@ -93,6 +94,8 @@ function SubscriberRow({ item, onCopy, copied, onClear, clearing }) {
 
 export default function Dashboard() {
   const { isAdmin } = useAuth();
+  const { blogPageEnabled, setBlogPageEnabled } = useSiteSettings();
+  const [blogToggleBusy, setBlogToggleBusy] = useState(false);
   const [reviews, setReviews] = useState([]);
   const [blogs, setBlogs] = useState([]);
   const [staffCount, setStaffCount] = useState(null);
@@ -266,6 +269,21 @@ export default function Dashboard() {
   const pendingBlogs = blogs.filter((item) => item.approvalStatus === 'pending').length;
   const publishedBlogs = blogs.filter((item) => item.published && item.status !== 'deleted').length;
 
+  const toggleBlogPage = async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!isAdmin || blogToggleBusy) return;
+    setBlogToggleBusy(true);
+    setError('');
+    try {
+      await setBlogPageEnabled(!blogPageEnabled);
+    } catch (err) {
+      setError(err.message || 'Could not update blog page availability');
+    } finally {
+      setBlogToggleBusy(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 items-start overflow-visible">
@@ -284,6 +302,66 @@ export default function Dashboard() {
           <p className="font-display font-bold text-3xl text-myland-ink">{pending}</p>
           <p className="text-sm text-myland-slate mt-1">Pending reviews</p>
         </Link>
+        {isAdmin ? (
+        <section
+          className={`bg-white rounded-xl3 p-5 shadow-card border transition-colors ${
+            blogPageEnabled
+              ? 'border-myland-mist/80 hover:border-myland-red/40'
+              : 'border-myland-mist/80'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-4">
+            {blogPageEnabled ? (
+              <Link
+                to="/blogs"
+                className="w-10 h-10 rounded-full bg-myland-cream text-myland-ink flex items-center justify-center"
+                aria-label="Open blog listing"
+              >
+                <HiOutlineBookOpen className="text-lg" />
+              </Link>
+            ) : (
+              <span className="w-10 h-10 rounded-full bg-myland-cream text-myland-ink flex items-center justify-center">
+                <HiOutlineBookOpen className="text-lg" />
+              </span>
+            )}
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-display font-semibold uppercase tracking-wide text-myland-slate">
+                {blogPageEnabled ? 'On' : 'Off'}
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={blogPageEnabled}
+                aria-label={blogPageEnabled ? 'Turn blog page off' : 'Turn blog page on'}
+                disabled={blogToggleBusy}
+                onClick={toggleBlogPage}
+                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-50 ${
+                  blogPageEnabled ? 'bg-myland-red' : 'bg-myland-ink/20'
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
+                    blogPageEnabled ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+          {blogPageEnabled ? (
+            <Link to="/blogs" className="block">
+              <p className="font-display font-bold text-3xl text-myland-ink">{publishedBlogs}</p>
+              <p className="text-sm text-myland-slate mt-1">
+                Published blogs{pendingBlogs ? ` · ${pendingBlogs} pending` : ''}
+              </p>
+            </Link>
+          ) : (
+            <div>
+              <p className="font-display font-bold text-3xl text-myland-ink">{publishedBlogs}</p>
+              <p className="text-sm text-myland-slate mt-1">Published blogs · page hidden</p>
+            </div>
+          )}
+        </section>
+        ) : (
         <Link
           to="/blogs"
           className="bg-white rounded-xl3 p-5 shadow-card border border-myland-mist/80 hover:border-myland-red/40 transition-colors"
@@ -301,6 +379,7 @@ export default function Dashboard() {
             Published blogs{pendingBlogs ? ` · ${pendingBlogs} pending` : ''}
           </p>
         </Link>
+        )}
         {isAdmin && (
           <Link
             to="/users"
