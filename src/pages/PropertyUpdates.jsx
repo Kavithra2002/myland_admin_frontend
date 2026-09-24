@@ -15,8 +15,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { mediaSrc } from '../utils/projectMedia.js';
 import WarmImage from '../components/WarmImage.jsx';
 
-const BASE_FILTERS = [
-  { id: 'all', label: 'All' },
+const FILTERS = [
   { id: 'new', label: 'New' },
   { id: 'contacted', label: 'Contacted' },
   { id: 'closed', label: 'Closed' },
@@ -72,19 +71,15 @@ function Field({ label, children }) {
 export default function PropertyUpdates() {
   const { isAdmin } = useAuth();
   const [items, setItems] = useState([]);
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState('new');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState('');
   const [lightbox, setLightbox] = useState(null);
   const [confirm, setConfirm] = useState(null);
 
-  const filters = isAdmin
-    ? [...BASE_FILTERS, { id: 'deleted', label: 'Deleted' }]
-    : BASE_FILTERS;
-
   const load = async () => {
-    const updates = await fetchLandUpdates(undefined, { includeDeleted: isAdmin });
+    const updates = await fetchLandUpdates();
     setItems(updates);
   };
 
@@ -114,26 +109,19 @@ export default function PropertyUpdates() {
     return () => window.removeEventListener('keydown', onKey);
   }, [lightbox]);
 
-  const activeItems = useMemo(
-    () => items.filter((item) => item.status !== 'deleted'),
-    [items]
-  );
-
   const counts = useMemo(
     () => ({
-      all: activeItems.length,
       new: items.filter((item) => item.status === 'new').length,
       contacted: items.filter((item) => item.status === 'contacted').length,
       closed: items.filter((item) => item.status === 'closed').length,
-      deleted: items.filter((item) => item.status === 'deleted').length,
     }),
-    [items, activeItems]
+    [items]
   );
 
-  const visible = useMemo(() => {
-    if (filter === 'all') return activeItems;
-    return items.filter((item) => item.status === filter);
-  }, [items, filter, activeItems]);
+  const visible = useMemo(
+    () => items.filter((item) => item.status === filter),
+    [items, filter]
+  );
 
   const changeStatus = async (id, status) => {
     setBusy(id);
@@ -166,15 +154,8 @@ export default function PropertyUpdates() {
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-xl3 p-5 md:p-6 shadow-card border border-myland-mist/80">
-        <p className="text-sm text-myland-slate leading-relaxed max-w-3xl">
-          Landowners send these from the public Sell your land page. Admin and staff see the same
-          form details, photo list, and a WhatsApp button to message the number they entered.
-          {isAdmin
-            ? ' Admins can remove a submission; it stays in the database under Deleted.'
-            : ''}
-        </p>
-        <div className="flex flex-wrap gap-2 mt-5">
-          {filters.map((item) => (
+        <div className="flex flex-wrap gap-2">
+          {FILTERS.map((item) => (
             <button
               key={item.id}
               type="button"
@@ -198,12 +179,10 @@ export default function PropertyUpdates() {
         <div className="bg-white rounded-xl3 p-10 shadow-card border border-myland-mist/80 text-center">
           <HiOutlineLocationMarker className="text-3xl text-myland-gold mx-auto mb-3" />
           <p className="font-display font-semibold text-myland-ink">
-            {filter === 'deleted' ? 'No deleted submissions' : 'No land submissions yet'}
+            No land submissions in this view
           </p>
           <p className="text-sm text-myland-slate mt-2">
-            {filter === 'deleted'
-              ? 'Removed property updates appear here and stay in the database.'
-              : 'New requests from the website Sell your land form will appear here.'}
+            New requests from the website Sell your land form will appear here.
           </p>
         </div>
       ) : null}
@@ -397,8 +376,7 @@ export default function PropertyUpdates() {
               Delete this property update?
             </h3>
             <p className="text-sm text-myland-slate mt-2">
-              The submission stays in the database as deleted. Staff will not see it. You can still
-              find it under Deleted and restore it later.
+              The submission stays in the database as deleted and leaves this list. Staff will not see it.
             </p>
             <div className="mt-4 rounded-2xl bg-myland-cream px-4 py-3">
               <p className="font-display font-semibold text-sm text-myland-ink">{confirm.name}</p>
