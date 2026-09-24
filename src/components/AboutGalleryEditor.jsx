@@ -173,11 +173,6 @@ export default function AboutGalleryEditor() {
                 </span>
               ) : null}
             </div>
-            <p className="text-sm text-myland-slate mt-1 max-w-2xl">
-              {isAdmin
-                ? 'Admins cannot edit the gallery. Review the current photos here and approve or decline staff requests. The public site does not change until a request is approved.'
-                : 'Add or remove About page photos, then send them to an admin for approval. The public site does not change until it is approved.'}
-            </p>
             <p className="text-xs text-myland-slate mt-2">
               {loading
                 ? 'Loading gallery…'
