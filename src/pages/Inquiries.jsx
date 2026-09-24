@@ -216,36 +216,23 @@ export default function Inquiries() {
                   </h2>
 
                   <dl className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                    <Field label="Name">{item.name || '-'}</Field>
-                    <Field label="Email">
-                      {item.email ? (
-                        <a href={`mailto:${item.email}`} className="hover:text-myland-red break-all">
-                          {item.email}
-                        </a>
-                      ) : (
-                        <span className="text-myland-slate font-normal">-</span>
-                      )}
-                    </Field>
-                    <Field label="Contact number">
-                      {phone ? (
+                    <Field label="Name">{item.name && item.name !== '-' ? item.name : '-'}</Field>
+                    {phone ? (
+                      <Field label="Contact number">
                         <a href={`tel:${phone}`} className="inline-flex items-center gap-2 hover:text-myland-red">
                           <HiOutlinePhone className="text-myland-red shrink-0" />
                           {phone}
                         </a>
-                      ) : (
-                        <span className="text-myland-slate font-normal">-</span>
-                      )}
-                    </Field>
-                    <Field label="WhatsApp number">
-                      {waNumber ? (
+                      </Field>
+                    ) : null}
+                    {waNumber ? (
+                      <Field label="WhatsApp number">
                         <span className="inline-flex items-center gap-2">
                           <FaWhatsapp className="text-[#25D366] shrink-0" />
                           {waNumber}
                         </span>
-                      ) : (
-                        <span className="text-myland-slate font-normal">-</span>
-                      )}
-                    </Field>
+                      </Field>
+                    ) : null}
                   </dl>
                   {item.message ? (
                     <p className="mt-4 text-sm text-myland-slate leading-relaxed whitespace-pre-wrap">
