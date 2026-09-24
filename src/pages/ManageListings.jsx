@@ -139,11 +139,6 @@ export default function ManageListings() {
         <div className="px-6 py-5 border-b border-myland-mist flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div>
             <h2 className="font-display font-semibold text-lg text-myland-ink">Project listings</h2>
-            <p className="text-sm text-myland-slate mt-1 max-w-2xl">
-              {isAdmin
-                ? 'Admins cannot add or edit listings. Review current projects here and approve or decline staff requests.'
-                : 'Add or edit a listing, then send it to an admin for approval. The public site does not change until it is approved.'}
-            </p>
           </div>
           {!isAdmin && (
             <Link to="/listings/new" className="btn-primary !py-2 !px-4 !text-xs shrink-0">
