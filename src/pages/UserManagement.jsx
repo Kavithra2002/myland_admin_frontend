@@ -16,7 +16,6 @@ const inputClass =
 export default function UserManagement() {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
-  const [filter, setFilter] = useState('active');
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState('');
@@ -38,14 +37,7 @@ export default function UserManagement() {
   }, []);
 
   const visible = useMemo(
-    () => users.filter((item) => item.userStatus === filter),
-    [users, filter]
-  );
-  const counts = useMemo(
-    () => ({
-      active: users.filter((item) => item.userStatus === 'active').length,
-      deleted: users.filter((item) => item.userStatus === 'deleted').length,
-    }),
+    () => users.filter((item) => item.userStatus === 'active'),
     [users]
   );
 
@@ -115,20 +107,6 @@ export default function UserManagement() {
     });
   };
 
-  const restore = async (user) => {
-    setBusy(String(user.userId));
-    setError('');
-    try {
-      await updateUser(user.userId, { userStatus: 'active' });
-      setNotice('User restored.');
-      await load();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusy('');
-    }
-  };
-
   const runDelete = async () => {
     if (!confirm) return;
     setBusy(String(confirm.userId));
@@ -149,39 +127,13 @@ export default function UserManagement() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-xl3 p-5 md:p-6 shadow-card border border-myland-mist/80">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-          <p className="text-sm text-myland-slate max-w-2xl">
-            Admins can add, edit, and delete staff accounts. Delete sets{' '}
-            <span className="font-semibold text-myland-ink">user_status</span> to deleted — the
-            row is not erased.
-          </p>
-          {editing == null && filter === 'active' && (
-            <button type="button" onClick={openNew} className="btn-primary !py-2.5 !px-4 !text-xs shrink-0">
-              <HiOutlinePlus className="text-base" /> Add user
-            </button>
-          )}
+      {editing == null && (
+        <div className="flex justify-end">
+          <button type="button" onClick={openNew} className="btn-primary !py-2.5 !px-4 !text-xs shrink-0">
+            <HiOutlinePlus className="text-base" /> Add user
+          </button>
         </div>
-        <div className="flex flex-wrap gap-2 mt-5">
-          {[
-            { id: 'active', label: 'Active' },
-            { id: 'deleted', label: 'Deleted' },
-          ].map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setFilter(item.id)}
-              className={`rounded-full px-4 py-2 text-xs font-display font-semibold ${
-                filter === item.id
-                  ? 'bg-myland-red text-white'
-                  : 'bg-myland-cream text-myland-slate hover:text-myland-ink'
-              }`}
-            >
-              {item.label} ({counts[item.id]})
-            </button>
-          ))}
-        </div>
-      </div>
+      )}
 
       {error && <p className="text-myland-red text-sm">{error}</p>}
       {notice && <p className="text-emerald-700 text-sm">{notice}</p>}
@@ -324,16 +276,6 @@ export default function UserManagement() {
                             <HiOutlineTrash /> Delete
                           </button>
                         </>
-                      )}
-                      {user.userStatus === 'deleted' && (
-                        <button
-                          type="button"
-                          disabled={busy === String(user.userId)}
-                          onClick={() => restore(user)}
-                          className="inline-flex items-center rounded-full bg-emerald-600 text-white font-display font-semibold text-xs px-3 py-2 disabled:opacity-50"
-                        >
-                          Restore
-                        </button>
                       )}
                     </div>
                   </td>
