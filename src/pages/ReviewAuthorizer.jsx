@@ -8,14 +8,12 @@ const FILTERS = [
   { id: 'pending', label: 'Pending' },
   { id: 'approved', label: 'Approved' },
   { id: 'rejected', label: 'Rejected' },
-  { id: 'deleted', label: 'Deleted' },
-  { id: 'all', label: 'All' },
 ];
 
 const ACTION_COPY = {
   delete: {
     title: 'Delete this review?',
-    body: 'The row stays in the database with status deleted. It is hidden from the public site. You can still see it here under Deleted.',
+    body: 'The row stays in the database with status deleted. It is hidden from this list and from the public site.',
     confirm: 'Yes, delete',
     confirmClass:
       'inline-flex items-center justify-center rounded-full bg-myland-red text-white font-display font-semibold text-xs px-5 py-2.5 hover:bg-myland-redDark disabled:opacity-50',
@@ -55,17 +53,15 @@ export default function ReviewAuthorizer() {
   }, []);
 
   const visible = useMemo(
-    () => (filter === 'all' ? reviews : reviews.filter((item) => item.status === filter)),
+    () => reviews.filter((item) => item.status === filter),
     [reviews, filter]
   );
 
   const counts = useMemo(
     () => ({
-      all: reviews.length,
       pending: reviews.filter((item) => item.status === 'pending').length,
       approved: reviews.filter((item) => item.status === 'approved').length,
       rejected: reviews.filter((item) => item.status === 'rejected').length,
-      deleted: reviews.filter((item) => item.status === 'deleted').length,
     }),
     [reviews]
   );
@@ -108,12 +104,7 @@ export default function ReviewAuthorizer() {
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-xl3 p-5 md:p-6 shadow-card border border-myland-mist/80">
-        <p className="text-sm text-myland-slate max-w-2xl">
-          {isAdmin
-            ? 'Reviews submitted on project pages stay hidden on the public site until you approve them. Rejected and deleted reviews stay in the database for the record; deleted items are hidden from the public site.'
-            : 'You can review submitted feedback here. An admin must approve or reject updates before they appear on the public site.'}
-        </p>
-        <div className="flex flex-wrap gap-2 mt-5">
+        <div className="flex flex-wrap gap-2">
           {FILTERS.map((item) => (
             <button
               key={item.id}
