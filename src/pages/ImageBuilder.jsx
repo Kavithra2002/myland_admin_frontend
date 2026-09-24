@@ -200,11 +200,6 @@ export default function ImageBuilder() {
           </span>
           <div>
             <h2 className="font-display font-semibold text-lg text-myland-ink">Land photo polish</h2>
-            <p className="text-sm text-myland-slate mt-1">
-              Upload a site photo, press Enhance, then preview the result. Dry ground is greened, foliage is
-              deepened, and the sky is polished while logos and signs stay intact. The photo stays in your
-              browser.
-            </p>
           </div>
         </div>
       </section>
