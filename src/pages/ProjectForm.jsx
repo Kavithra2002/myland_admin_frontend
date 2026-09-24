@@ -398,10 +398,6 @@ export default function ProjectForm() {
         </div>
       </div>
 
-      <p className="text-sm text-myland-slate">
-        Saving sends this {isEdit ? 'update' : 'new listing'} to an admin. The public project page stays as it is until they approve it.
-      </p>
-
       {error ? <p className="text-sm text-myland-red">{error}</p> : null}
 
       <div className="max-w-3xl space-y-5">
