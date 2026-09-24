@@ -31,21 +31,9 @@ const LAYOUTS = [
 ];
 
 const SECTIONS = [
-  {
-    id: 'cover',
-    label: 'Cover story',
-    hint: 'The journal hero at the top of the public Blog page. One post only.',
-  },
-  {
-    id: 'features',
-    label: 'Field notes',
-    hint: 'The two large feature cards under Field notes. A third move pushes the last one to The index.',
-  },
-  {
-    id: 'index',
-    label: 'The index',
-    hint: 'The numbered list at the bottom of the Blog page.',
-  },
+  { id: 'cover', label: 'Cover story' },
+  { id: 'features', label: 'Field notes' },
+  { id: 'index', label: 'The index' },
 ];
 
 const EMPTY_FORM = {
@@ -217,7 +205,7 @@ function confirmCopy(confirm) {
   }
   return {
     title: 'Delete this blog?',
-    body: 'The row stays in the database with status deleted. It is hidden from the public Blog page. You can still see it under Deleted.',
+    body: 'The row stays in the database with status deleted. It is hidden from this list and from the public Blog page.',
     action: 'Yes, delete',
     actionClass: CONFIRM_BTN_RED,
   };
@@ -273,14 +261,12 @@ export default function BlogListing() {
   }, []);
 
   const active = useMemo(() => blogs.filter((item) => item.status !== 'deleted'), [blogs]);
-  const deleted = useMemo(() => blogs.filter((item) => item.status === 'deleted'), [blogs]);
 
   const visible = useMemo(() => {
-    if (filter === 'deleted') return deleted;
     if (filter === 'pending') return active.filter((item) => item.approvalStatus === 'pending');
     if (filter === 'declined') return active.filter((item) => item.approvalStatus === 'declined');
     return active.filter((item) => (item.placement || 'index') === filter);
-  }, [active, deleted, filter]);
+  }, [active, filter]);
 
   const counts = useMemo(
     () => ({
@@ -289,12 +275,10 @@ export default function BlogListing() {
       index: active.filter((item) => item.placement === 'index').length,
       pending: active.filter((item) => item.approvalStatus === 'pending').length,
       declined: active.filter((item) => item.approvalStatus === 'declined').length,
-      deleted: deleted.length,
     }),
-    [active, deleted]
+    [active]
   );
 
-  const currentSection = SECTIONS.find((item) => item.id === filter);
   const defaultApproverId = String(admins[0]?.userId || '');
 
   const openNew = () => {
@@ -518,19 +502,14 @@ export default function BlogListing() {
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-xl3 p-5 md:p-6 shadow-card border border-myland-mist/80">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-          <p className="text-sm text-myland-slate max-w-2xl">
-            {isAdmin
-              ? 'Admins only approve or decline staff requests. Content design, additions, moves, and deletions are done by staff and then sent here for a decision.'
-              : 'Design, add, and request deletions here. Those changes stay off the public Blog page until you send them to an admin for approval. You will see the status as approved, pending, or declined.'}
-          </p>
-          {!isAdmin && editing == null && filter !== 'deleted' && (
+        {!isAdmin && editing == null && (
+          <div className="flex justify-end mb-5">
             <button type="button" onClick={openNew} className="btn-primary !py-2.5 !px-4 !text-xs shrink-0">
               <HiOutlinePlus className="text-base" /> Add blog
             </button>
-          )}
-        </div>
-        <div className="flex flex-wrap gap-2 mt-5">
+          </div>
+        )}
+        <div className="flex flex-wrap gap-2">
           {SECTIONS.map((item) => (
             <button
               key={item.id}
@@ -567,21 +546,7 @@ export default function BlogListing() {
           >
             Declined ({counts.declined})
           </button>
-          <button
-            type="button"
-            onClick={() => setFilter('deleted')}
-            className={`rounded-full px-4 py-2 text-xs font-display font-semibold transition-colors ${
-              filter === 'deleted'
-                ? 'bg-myland-red text-white'
-                : 'bg-myland-cream text-myland-slate hover:text-myland-ink'
-            }`}
-          >
-            Deleted ({counts.deleted})
-          </button>
         </div>
-        {currentSection && (
-          <p className="text-xs text-myland-slate mt-4">{currentSection.hint}</p>
-        )}
       </div>
 
       {error && <p className="text-myland-red text-sm">{error}</p>}
@@ -597,11 +562,6 @@ export default function BlogListing() {
               <h2 className="font-display font-semibold text-lg text-myland-ink">
                 {editing === 'new' ? 'Add blog' : 'Edit blog'}
               </h2>
-              <p className="text-sm text-myland-slate mt-1">
-                {isAdmin
-                  ? 'Choose which section of the public Blog page this post belongs to.'
-                  : 'Design the post, then send it to an admin. The public page will not update until they approve it.'}
-              </p>
             </div>
             <button
               type="button"
@@ -941,13 +901,11 @@ export default function BlogListing() {
           <HiOutlineStar className="text-3xl text-myland-gold mx-auto mb-3" />
           <p className="font-display font-semibold text-myland-ink">No blogs in this view</p>
           <p className="text-sm text-myland-slate mt-2">
-            {filter === 'deleted'
-              ? 'Deleted posts stay in the database and appear here.'
-              : filter === 'pending'
-                ? 'When staff send a change to an admin, it appears here until it is approved or declined.'
-                : filter === 'declined'
-                  ? 'Declined requests appear here with the admin message.'
-                  : 'Add a post or move one into this section.'}
+            {filter === 'pending'
+              ? 'When staff send a change to an admin, it appears here until it is approved or declined.'
+              : filter === 'declined'
+                ? 'Declined requests appear here with the admin message.'
+                : 'Add a post or move one into this section.'}
           </p>
         </div>
       )}
