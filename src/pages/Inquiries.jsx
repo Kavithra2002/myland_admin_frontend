@@ -8,8 +8,7 @@ import { FaWhatsapp } from 'react-icons/fa';
 import { deleteInquiry, fetchInquiries, setInquiryStatus } from '../api/inquiries.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
-const BASE_FILTERS = [
-  { id: 'all', label: 'All' },
+const FILTERS = [
   { id: 'new', label: 'New' },
   { id: 'in_progress', label: 'In progress' },
   { id: 'closed', label: 'Closed' },
@@ -95,18 +94,14 @@ function Field({ label, children }) {
 export default function Inquiries() {
   const { isAdmin } = useAuth();
   const [items, setItems] = useState([]);
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState('new');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState('');
   const [confirm, setConfirm] = useState(null);
 
-  const filters = isAdmin
-    ? [...BASE_FILTERS, { id: 'deleted', label: 'Deleted' }]
-    : BASE_FILTERS;
-
   const load = async () => {
-    const inquiries = await fetchInquiries(undefined, { includeDeleted: isAdmin });
+    const inquiries = await fetchInquiries();
     setItems(inquiries);
   };
 
@@ -117,26 +112,19 @@ export default function Inquiries() {
       .finally(() => setLoading(false));
   }, [isAdmin]);
 
-  const activeItems = useMemo(
-    () => items.filter((item) => item.status !== 'deleted'),
-    [items]
-  );
-
   const counts = useMemo(
     () => ({
-      all: activeItems.length,
       new: items.filter((item) => item.status === 'new').length,
       in_progress: items.filter((item) => item.status === 'in_progress').length,
       closed: items.filter((item) => item.status === 'closed').length,
-      deleted: items.filter((item) => item.status === 'deleted').length,
     }),
-    [items, activeItems]
+    [items]
   );
 
-  const visible = useMemo(() => {
-    if (filter === 'all') return activeItems;
-    return items.filter((item) => item.status === filter);
-  }, [items, filter, activeItems]);
+  const visible = useMemo(
+    () => items.filter((item) => item.status === filter),
+    [items, filter]
+  );
 
   const changeStatus = async (id, status) => {
     setBusy(id);
@@ -169,13 +157,8 @@ export default function Inquiries() {
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-xl3 p-5 md:p-6 shadow-card border border-myland-mist/80">
-        <p className="text-sm text-myland-slate leading-relaxed max-w-3xl">
-          These come from the public project Contact us form and the website contact page. Use the
-          number and WhatsApp buttons to reach the buyer again.
-          {isAdmin ? ' Admins can remove an inquiry; it stays in the database under Deleted.' : ''}
-        </p>
-        <div className="flex flex-wrap gap-2 mt-5">
-          {filters.map((item) => (
+        <div className="flex flex-wrap gap-2">
+          {FILTERS.map((item) => (
             <button
               key={item.id}
               type="button"
@@ -199,12 +182,10 @@ export default function Inquiries() {
         <div className="bg-white rounded-xl3 p-10 shadow-card border border-myland-mist/80 text-center">
           <HiOutlineChatAlt2 className="text-3xl text-myland-gold mx-auto mb-3" />
           <p className="font-display font-semibold text-myland-ink">
-            {filter === 'deleted' ? 'No deleted inquiries' : 'No inquiries yet'}
+            No inquiries in this view
           </p>
           <p className="text-sm text-myland-slate mt-2">
-            {filter === 'deleted'
-              ? 'Removed inquiries appear here and stay in the database.'
-              : 'When someone uses Contact us on a project page, their details will show here.'}
+            When someone uses Contact us on a project page, their details will show here.
           </p>
         </div>
       ) : null}
@@ -378,8 +359,7 @@ export default function Inquiries() {
               Delete this inquiry?
             </h3>
             <p className="text-sm text-myland-slate mt-2">
-              The inquiry stays in the database as deleted. Staff will not see it. You can still find
-              it under Deleted and restore it later.
+              The inquiry stays in the database as deleted and leaves this list. Staff will not see it.
             </p>
             <div className="mt-4 rounded-2xl bg-myland-cream px-4 py-3">
               <p className="font-display font-semibold text-sm text-myland-ink">
