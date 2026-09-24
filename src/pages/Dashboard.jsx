@@ -624,10 +624,6 @@ export default function Dashboard() {
         <div className="mb-5 flex items-start justify-between gap-3">
           <div>
             <h2 className="font-display font-semibold text-lg text-myland-ink">Contact messages</h2>
-            <p className="text-sm text-myland-slate mt-1">
-              Visitors who sent a message from the website contact form
-              {contactMessages.length ? ` · ${contactMessages.length} total` : ''}
-            </p>
           </div>
           {contactMessages.length > CONTACT_VISIBLE_ROWS ? (
             <div className="flex items-center gap-1 shrink-0">
