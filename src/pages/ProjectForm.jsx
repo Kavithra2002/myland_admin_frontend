@@ -60,6 +60,7 @@ const EMPTY = {
   gallery: [],
   plotPlanUrl: '',
   videoUrl: '',
+  videoThumbnailUrl: '',
   mapQuery: '',
   showOnProjects: true,
   published: true,
@@ -221,6 +222,7 @@ function formFromProject(project) {
     gallery: gallery.filter((src) => src && src !== cover),
     plotPlanUrl: source.plotPlan || source.plotPlanUrl || '',
     videoUrl: source.videoUrl || '',
+    videoThumbnailUrl: source.videoThumbnail || source.videoThumbnailUrl || '',
     mapQuery: source.mapQuery || '',
     showOnProjects: source.showOnProjects !== false,
     published: source.published !== false,
@@ -303,6 +305,8 @@ export default function ProjectForm() {
       image: form.imageUrl,
       gallery: [form.imageUrl, ...form.gallery].filter(Boolean),
       plotPlan: form.plotPlanUrl,
+      videoThumbnail: form.videoThumbnailUrl,
+      videoThumbnailUrl: form.videoThumbnailUrl,
     };
   }, [form]);
 
@@ -316,6 +320,7 @@ export default function ProjectForm() {
         if (kind === 'cover') return { ...current, imageUrl: urls[0] };
         if (kind === 'plan') return { ...current, plotPlanUrl: urls[0] };
         if (kind === 'video') return { ...current, videoUrl: urls[0] };
+        if (kind === 'thumb') return { ...current, videoThumbnailUrl: urls[0] };
         return { ...current, gallery: [...current.gallery, ...urls] };
       });
     } catch (err) {
@@ -683,7 +688,12 @@ export default function ProjectForm() {
                 <div className="mt-3">
                   {isDirectVideo(form.videoUrl) ? (
                     <div className="relative overflow-hidden rounded-xl bg-myland-ink">
-                      <video src={form.videoUrl} controls className="w-full max-h-48" />
+                      <video
+                        src={form.videoUrl}
+                        poster={form.videoThumbnailUrl ? mediaSrc(form.videoThumbnailUrl) : undefined}
+                        controls
+                        className="w-full max-h-48"
+                      />
                       <button
                         type="button"
                         onClick={() => setField('videoUrl', '')}
@@ -701,6 +711,40 @@ export default function ProjectForm() {
                         accept="video/mp4,video/webm,video/ogg,.mp4,.webm,.mov,.m4v"
                         className="hidden"
                         onChange={(event) => uploadFiles(event.target.files, 'video')}
+                      />
+                    </label>
+                  )}
+                </div>
+                <div className="mt-4">
+                  <p className="text-xs font-display font-semibold uppercase tracking-wide text-myland-slate mb-2">
+                    Thumbnail
+                  </p>
+                  {form.videoThumbnailUrl ? (
+                    <div className="relative overflow-hidden rounded-xl h-36 bg-myland-mist">
+                      <WarmImage
+                        src={mediaSrc(form.videoThumbnailUrl)}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        wrapperClassName="absolute inset-0"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setField('videoThumbnailUrl', '')}
+                        className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white text-myland-ink flex items-center justify-center"
+                        aria-label="Remove thumbnail"
+                      >
+                        <HiX />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center gap-2 h-36 rounded-xl border border-dashed border-myland-mist bg-myland-cream text-sm text-myland-slate cursor-pointer hover:border-myland-gold">
+                      <HiOutlinePhotograph className="text-2xl" />
+                      {busy === 'upload-thumb' ? 'Uploading…' : 'Add a thumbnail'}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(event) => uploadFiles(event.target.files, 'thumb')}
                       />
                     </label>
                   )}
