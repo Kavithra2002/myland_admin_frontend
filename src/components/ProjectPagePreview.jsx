@@ -10,7 +10,6 @@ import {
   HiOutlineOfficeBuilding,
   HiOutlinePhotograph,
   HiOutlineShare,
-  HiPlay,
 } from 'react-icons/hi';
 import logo from '../assets/myland-logo.png';
 import WarmImage from './WarmImage.jsx';
@@ -326,7 +325,25 @@ export default function ProjectPagePreview({ form, badges }) {
         <article id="preview-video" className="scroll-mt-16 mt-6 lg:mt-10 bg-white rounded-xl3 p-6 sm:p-8 shadow-card">
           <h2 className="font-display font-semibold text-xl text-myland-ink mb-5">Video</h2>
           <div className="relative overflow-hidden rounded-xl2 bg-myland-mist aspect-video">
-            {isDirectVideo(form.videoUrl) ? (
+            {form.videoThumbnailUrl ? (
+              <>
+                <WarmImage
+                  src={mediaSrc(form.videoThumbnailUrl)}
+                  alt={`${title} video`}
+                  className="w-full h-full object-cover opacity-80"
+                  wrapperClassName="absolute inset-0"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
+                <p className="absolute top-4 left-4 right-4 text-white font-display font-semibold">{title} walkthrough</p>
+                <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full bg-white/95 text-neutral-900 flex items-center justify-center shadow-[0_0_0_1px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.18)] ring-1 ring-white/50">
+                    <svg viewBox="0 0 24 24" className="w-7 h-7" fill="currentColor" aria-hidden="true">
+                      <polygon points="9,6.5 9,17.5 18,12" />
+                    </svg>
+                  </span>
+                </span>
+              </>
+            ) : isDirectVideo(form.videoUrl) ? (
               <video src={mediaSrc(form.videoUrl)} controls className="w-full h-full object-cover" />
             ) : youtubeEmbedId(form.videoUrl) ? (
               <iframe
@@ -351,8 +368,10 @@ export default function ProjectPagePreview({ form, badges }) {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
                 <p className="absolute top-4 left-4 right-4 text-white font-display font-semibold">{title} walkthrough</p>
                 <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <span className="w-16 h-16 rounded-full bg-myland-red text-white flex items-center justify-center">
-                    <HiPlay className="text-3xl ml-1" />
+                  <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full bg-white/95 text-neutral-900 flex items-center justify-center shadow-[0_0_0_1px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.18)] ring-1 ring-white/50">
+                    <svg viewBox="0 0 24 24" className="w-7 h-7" fill="currentColor" aria-hidden="true">
+                      <polygon points="9,6.5 9,17.5 18,12" />
+                    </svg>
                   </span>
                 </span>
               </>
