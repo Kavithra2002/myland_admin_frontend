@@ -56,6 +56,26 @@ export async function submitBlogChange(payload) {
   return data.blog;
 }
 
+export async function uploadBlogImage(file) {
+  const body = new FormData();
+  body.append('file', file);
+  const res = await apiFetch('/api/blogs/uploads', {
+    method: 'POST',
+    body,
+  });
+  const data = await readError(res, 'Could not upload image');
+  return data.url;
+}
+
+export async function importBlogImageUrl(url) {
+  const res = await apiFetch('/api/blogs/import-image', {
+    method: 'POST',
+    body: JSON.stringify({ url }),
+  });
+  const data = await readError(res, 'Could not use that image link');
+  return data.url;
+}
+
 export async function reviewBlog(id, payload) {
   const res = await apiFetch(`/api/blogs/${id}/review`, {
     method: 'POST',

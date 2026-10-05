@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import {
   HiOutlinePencil,
+  HiOutlinePhotograph,
   HiOutlinePlus,
   HiOutlineStar,
   HiOutlineTrash,
+  HiOutlineUpload,
   HiStar,
   HiX,
 } from 'react-icons/hi';
@@ -12,16 +14,19 @@ import {
   createBlog,
   deleteBlog,
   fetchBlogs,
+  importBlogImageUrl,
   placeBlog,
   reorderBlog,
   reviewBlog,
   submitBlogChange,
   updateBlog,
+  uploadBlogImage,
 } from '../api/blogs.js';
 import { fetchAdmins } from '../api/users.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useSiteSettings } from '../context/SiteSettingsContext.jsx';
 import WarmImage from '../components/WarmImage.jsx';
+import { mediaSrc } from '../utils/projectMedia.js';
 
 const TOPICS = ['Site visits', 'Titles', 'Districts', 'Loans', 'Investment', 'Journal', 'Guides'];
 const LAYOUTS = [
@@ -59,6 +64,30 @@ const CONFIRM_BTN_RED =
   'inline-flex items-center justify-center rounded-full bg-myland-red text-white font-display font-semibold text-xs px-5 py-2.5 hover:bg-myland-redDark disabled:opacity-50';
 const CONFIRM_BTN_GREEN =
   'inline-flex items-center justify-center rounded-full bg-emerald-600 text-white font-display font-semibold text-xs px-5 py-2.5 hover:bg-emerald-700 disabled:opacity-50';
+
+const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
+
+function directDriveImageUrl(input) {
+  const value = String(input || '').trim();
+  if (!value) return '';
+  try {
+    const url = new URL(value);
+    const host = url.hostname.replace(/^www\./, '').toLowerCase();
+    const allowed =
+      host === 'drive.google.com' ||
+      host === 'docs.google.com' ||
+      host === 'drive.usercontent.google.com' ||
+      host.endsWith('googleusercontent.com');
+    if (!allowed) return '';
+    const fromPath = url.pathname.match(/\/d\/([a-zA-Z0-9_-]{10,})/);
+    const id = fromPath?.[1] || url.searchParams.get('id') || '';
+    if (!/^[a-zA-Z0-9_-]{10,}$/.test(id)) return '';
+    return `https://lh3.googleusercontent.com/d/${id}`;
+  } catch {
+    return '';
+  }
+}
 
 function slugify(value) {
   return String(value || '')
@@ -241,6 +270,7 @@ export default function BlogListing() {
   const [loading, setLoading] = useState(true);
   const [confirm, setConfirm] = useState(null);
   const [imageBroken, setImageBroken] = useState(false);
+  const [imageBusy, setImageBusy] = useState(false);
 
   const load = async () => {
     const items = await fetchBlogs();
@@ -286,6 +316,7 @@ export default function BlogListing() {
     setEditing('new');
     setForm({ ...EMPTY_FORM, placement });
     setSlugTouched(false);
+    setImageBroken(false);
     setError('');
     setNotice('');
   };
@@ -304,6 +335,7 @@ export default function BlogListing() {
     setEditing(null);
     setForm(EMPTY_FORM);
     setSlugTouched(false);
+    setImageBroken(false);
   };
 
   const setField = (key, value) => {
@@ -317,6 +349,11 @@ export default function BlogListing() {
 
   const requestSave = (event) => {
     event.preventDefault();
+    if (imageBusy) return;
+    if (!String(form.imageUrl || '').trim()) {
+      setError('Please add a cover image.');
+      return;
+    }
     if (isAdmin) {
       setConfirm({
         type: editing === 'new' ? 'add' : 'save',
@@ -659,40 +696,15 @@ export default function BlogListing() {
             </Field>
           </div>
 
-          <Field label="Cover image URL">
-            <input
-              className={inputClass}
-              value={form.imageUrl}
-              onChange={(e) => setField('imageUrl', e.target.value)}
-              placeholder="https://images.unsplash.com/photo-..."
-              required={editing === 'new'}
-            />
-            <p className="text-xs text-myland-slate mt-2">
-              Use a direct image file URL (usually starts with{' '}
-              <span className="font-semibold text-myland-ink">images.unsplash.com</span> or ends in
-              .jpg / .png / .webp). A photo page like unsplash.com/photos/... is a webpage, so the
-              thumbnail will stay broken.
-            </p>
-          </Field>
-          {form.imageUrl && (
-            <div className="h-40 rounded-xl2 overflow-hidden bg-myland-cream relative">
-              {imageBroken ? (
-                <div className="absolute inset-0 flex items-center justify-center px-4 text-center">
-                  <p className="text-sm text-myland-red">
-                    This URL is not a usable image file. Right-click the photo → Copy image
-                    address, or paste a link from images.unsplash.com.
-                  </p>
-                </div>
-              ) : (
-                <WarmImage
-                  src={form.imageUrl}
-                  alt=""
-                  className="w-full h-full object-cover"
-                  onError={() => setImageBroken(true)}
-                />
-              )}
-            </div>
-          )}
+          <CoverImageField
+            value={form.imageUrl}
+            broken={imageBroken}
+            busy={imageBusy}
+            onBusy={setImageBusy}
+            onChange={(url) => setField('imageUrl', url)}
+            onBroken={setImageBroken}
+            onError={setError}
+          />
 
           <Field label="Excerpt">
             <textarea
@@ -748,7 +760,11 @@ export default function BlogListing() {
           )}
 
           <div className="flex flex-wrap gap-2">
-            <button type="submit" disabled={busy === 'save'} className="btn-primary !py-2.5 !px-5 !text-xs">
+            <button
+              type="submit"
+              disabled={busy === 'save' || imageBusy}
+              className="btn-primary !py-2.5 !px-5 !text-xs"
+            >
               {busy === 'save'
                 ? 'Saving…'
                 : isAdmin
@@ -775,7 +791,12 @@ export default function BlogListing() {
             >
               <div className="flex flex-col md:flex-row gap-4">
                 <div className="w-full md:w-44 h-32 rounded-xl2 overflow-hidden bg-myland-cream shrink-0">
-                  <WarmImage src={blog.image} alt="" className="w-full h-full object-cover" />
+                  <WarmImage
+                    src={mediaSrc(blog.image)}
+                    alt=""
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-cover"
+                  />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -1012,6 +1033,178 @@ export default function BlogListing() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function CoverImageField({ value, broken, busy, onBusy, onChange, onBroken, onError }) {
+  const inputRef = useRef(null);
+  const linkLock = useRef(false);
+  const [dragging, setDragging] = useState(false);
+  const [link, setLink] = useState('');
+
+  const applyFile = async (file) => {
+    if (!file) return;
+    if (!IMAGE_TYPES.includes(file.type)) {
+      onError('Please upload a JPG, PNG, WEBP, or GIF image.');
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      onError('That image is larger than 12 MB. Choose a smaller file.');
+      return;
+    }
+    onBusy(true);
+    onError('');
+    try {
+      const url = await uploadBlogImage(file);
+      onChange(url);
+      setLink('');
+    } catch (err) {
+      onError(err.message || 'Could not upload image');
+    } finally {
+      onBusy(false);
+      if (inputRef.current) inputRef.current.value = '';
+    }
+  };
+
+  const applyLink = async (raw) => {
+    const next = String(raw || '').trim();
+    if (!next || linkLock.current) return;
+    linkLock.current = true;
+    const driveUrl = directDriveImageUrl(next);
+    if (!driveUrl) {
+      onChange(next);
+      linkLock.current = false;
+      return;
+    }
+    onChange(driveUrl);
+    onBusy(true);
+    onError('');
+    try {
+      const url = await importBlogImageUrl(next);
+      onChange(url || driveUrl);
+      setLink('');
+    } catch (err) {
+      onChange(driveUrl);
+      onError(err.message || 'Could not copy that Google Drive image. The preview uses the Drive link.');
+    } finally {
+      linkLock.current = false;
+      onBusy(false);
+    }
+  };
+
+  const onDrop = (event) => {
+    event.preventDefault();
+    setDragging(false);
+    const file = event.dataTransfer.files?.[0];
+    if (file) {
+      applyFile(file);
+      return;
+    }
+    const uri = event.dataTransfer.getData('text/uri-list') || event.dataTransfer.getData('text/plain');
+    if (uri) applyLink(uri);
+  };
+
+  return (
+    <div>
+      <p className="block text-xs font-display font-semibold text-myland-ink tracking-wide mb-2">
+        Cover image
+      </p>
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => !busy && inputRef.current?.click()}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            if (!busy) inputRef.current?.click();
+          }
+        }}
+        onDragOver={(event) => {
+          event.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={onDrop}
+        className={`relative h-44 rounded-xl2 overflow-hidden border-2 border-dashed cursor-pointer transition-colors ${
+          dragging ? 'border-myland-red bg-myland-red/5' : 'border-myland-mist bg-myland-cream'
+        }`}
+      >
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          className="sr-only"
+          onChange={(event) => applyFile(event.target.files?.[0])}
+        />
+        {value && !broken ? (
+          <WarmImage
+            src={mediaSrc(value)}
+            alt=""
+            referrerPolicy="no-referrer"
+            className="w-full h-full object-cover"
+            wrapperClassName="absolute inset-0"
+            onError={() => onBroken(true)}
+          />
+        ) : (
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6">
+            <span className="w-12 h-12 rounded-full bg-white text-myland-ink flex items-center justify-center mb-3">
+              {value && broken ? <HiOutlinePhotograph className="text-xl" /> : <HiOutlineUpload className="text-xl" />}
+            </span>
+            <p className="font-display font-semibold text-sm text-myland-ink">
+              {value && broken ? 'This image did not load' : 'Drop an image here'}
+            </p>
+            <p className="text-xs text-myland-slate mt-1">
+              {value && broken
+                ? 'Upload the photo from your device, or paste a direct image link.'
+                : 'or click to browse JPG, PNG, WEBP, or GIF'}
+            </p>
+          </div>
+        )}
+        {busy && (
+          <div className="absolute inset-0 bg-white/75 flex items-center justify-center">
+            <p className="text-sm font-display font-semibold text-myland-ink">Uploading…</p>
+          </div>
+        )}
+        {value && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onChange('');
+              setLink('');
+            }}
+            className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white text-myland-ink flex items-center justify-center shadow-card"
+            aria-label="Remove cover image"
+          >
+            <HiX />
+          </button>
+        )}
+      </div>
+      <label className="block mt-3">
+        <span className="block text-xs font-display font-semibold text-myland-ink tracking-wide mb-2">
+          Or paste an image link
+        </span>
+        <input
+          className={inputClass}
+          value={link}
+          onChange={(event) => setLink(event.target.value)}
+          onBlur={() => applyLink(link)}
+          onPaste={(event) => {
+            const text = event.clipboardData.getData('text');
+            if (!text) return;
+            event.preventDefault();
+            const next = text.trim();
+            setLink(next);
+            applyLink(next);
+          }}
+          placeholder="Unsplash, Google Drive, or a direct .jpg / .png / .webp URL"
+        />
+      </label>
+      <p className="text-xs text-myland-slate mt-2">
+        Google Drive files need to be shared as Anyone with the link. A Drive share page is copied
+        into an image URL so the thumbnail can load.
+      </p>
     </div>
   );
 }
