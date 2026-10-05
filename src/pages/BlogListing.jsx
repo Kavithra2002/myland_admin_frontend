@@ -48,6 +48,7 @@ const EMPTY_FORM = {
   excerpt: '',
   body: '',
   imageUrl: '',
+  imageOrientation: 'landscape',
   readTime: '',
   layout: 'auto',
   published: true,
@@ -89,6 +90,26 @@ function directDriveImageUrl(input) {
   }
 }
 
+function readImageOrientation(source) {
+  return new Promise((resolve) => {
+    const objectUrl = typeof Blob !== 'undefined' && source instanceof Blob ? URL.createObjectURL(source) : '';
+    const url = objectUrl || String(source || '');
+    if (!url) {
+      resolve('');
+      return;
+    }
+    const img = new Image();
+    const finish = (orientation) => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      resolve(orientation);
+    };
+    img.onload = () => finish(img.naturalHeight > img.naturalWidth ? 'portrait' : 'landscape');
+    img.onerror = () => finish('');
+    img.referrerPolicy = 'no-referrer';
+    img.src = url;
+  });
+}
+
 function slugify(value) {
   return String(value || '')
     .toLowerCase()
@@ -118,6 +139,10 @@ function formFromBlog(blog) {
     excerpt: source.excerpt || '',
     body: source.body || '',
     imageUrl: source.imageUrl || source.image || '',
+    imageOrientation:
+      source.imageOrientation === 'portrait' || source.imageOrientation === 'landscape'
+        ? source.imageOrientation
+        : '',
     readTime: source.readTime || '',
     layout: source.layout || 'auto',
     published: blog.published !== false,
@@ -337,6 +362,18 @@ export default function BlogListing() {
     setSlugTouched(false);
     setImageBroken(false);
   };
+
+  useEffect(() => {
+    if (editing == null || form.imageOrientation || !form.imageUrl) return undefined;
+    let cancelled = false;
+    readImageOrientation(mediaSrc(form.imageUrl)).then((next) => {
+      if (cancelled || !next) return;
+      setForm((current) => (current.imageOrientation ? current : { ...current, imageOrientation: next }));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [editing, form.imageUrl, form.imageOrientation]);
 
   const setField = (key, value) => {
     if (key === 'imageUrl') setImageBroken(false);
@@ -698,13 +735,40 @@ export default function BlogListing() {
 
           <CoverImageField
             value={form.imageUrl}
+            orientation={form.imageOrientation}
             broken={imageBroken}
             busy={imageBusy}
             onBusy={setImageBusy}
             onChange={(url) => setField('imageUrl', url)}
+            onOrientation={(next) => setField('imageOrientation', next)}
             onBroken={setImageBroken}
             onError={setError}
           />
+          <div>
+            <p className="text-xs font-display font-semibold text-myland-ink mb-2">Photo shape</p>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { id: 'landscape', label: 'Landscape' },
+                { id: 'portrait', label: 'Portrait' },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setField('imageOrientation', item.id)}
+                  className={`rounded-full px-4 py-2 text-xs font-display font-semibold ${
+                    form.imageOrientation === item.id
+                      ? 'bg-myland-ink text-white'
+                      : 'bg-myland-cream text-myland-slate'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-myland-slate mt-2">
+              The whole photo stays visible. Choose portrait for a vertical photo so it is not cut off.
+            </p>
+          </div>
 
           <Field label="Excerpt">
             <textarea
@@ -790,12 +854,19 @@ export default function BlogListing() {
               className="bg-white rounded-xl3 p-4 md:p-5 shadow-card border border-myland-mist/80"
             >
               <div className="flex flex-col md:flex-row gap-4">
-                <div className="w-full md:w-44 h-32 rounded-xl2 overflow-hidden bg-myland-cream shrink-0">
+                <div
+                  className={`relative rounded-xl2 overflow-hidden bg-myland-cream shrink-0 ${
+                    (blog.pendingPayload?.imageOrientation || blog.imageOrientation) === 'portrait'
+                      ? 'w-full md:w-36 h-52'
+                      : 'w-full md:w-44 h-32'
+                  }`}
+                >
                   <WarmImage
-                    src={mediaSrc(blog.image)}
+                    src={mediaSrc(blog.pendingPayload?.imageUrl || blog.pendingPayload?.image || blog.image)}
                     alt=""
                     referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
+                    wrapperClassName="absolute inset-0"
                   />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -1037,7 +1108,17 @@ export default function BlogListing() {
   );
 }
 
-function CoverImageField({ value, broken, busy, onBusy, onChange, onBroken, onError }) {
+function CoverImageField({
+  value,
+  orientation,
+  broken,
+  busy,
+  onBusy,
+  onChange,
+  onOrientation,
+  onBroken,
+  onError,
+}) {
   const inputRef = useRef(null);
   const linkLock = useRef(false);
   const [dragging, setDragging] = useState(false);
@@ -1056,8 +1137,12 @@ function CoverImageField({ value, broken, busy, onBusy, onChange, onBroken, onEr
     onBusy(true);
     onError('');
     try {
-      const url = await uploadBlogImage(file);
+      const [url, nextOrientation] = await Promise.all([
+        uploadBlogImage(file),
+        readImageOrientation(file),
+      ]);
       onChange(url);
+      if (nextOrientation) onOrientation?.(nextOrientation);
       setLink('');
     } catch (err) {
       onError(err.message || 'Could not upload image');
@@ -1074,6 +1159,8 @@ function CoverImageField({ value, broken, busy, onBusy, onChange, onBroken, onEr
     const driveUrl = directDriveImageUrl(next);
     if (!driveUrl) {
       onChange(next);
+      const nextOrientation = await readImageOrientation(mediaSrc(next));
+      if (nextOrientation) onOrientation?.(nextOrientation);
       linkLock.current = false;
       return;
     }
@@ -1082,7 +1169,10 @@ function CoverImageField({ value, broken, busy, onBusy, onChange, onBroken, onEr
     onError('');
     try {
       const url = await importBlogImageUrl(next);
-      onChange(url || driveUrl);
+      const saved = url || driveUrl;
+      onChange(saved);
+      const nextOrientation = await readImageOrientation(mediaSrc(saved));
+      if (nextOrientation) onOrientation?.(nextOrientation);
       setLink('');
     } catch (err) {
       onChange(driveUrl);
@@ -1126,9 +1216,9 @@ function CoverImageField({ value, broken, busy, onBusy, onChange, onBroken, onEr
         }}
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
-        className={`relative h-44 rounded-xl2 overflow-hidden border-2 border-dashed cursor-pointer transition-colors ${
-          dragging ? 'border-myland-red bg-myland-red/5' : 'border-myland-mist bg-myland-cream'
-        }`}
+        className={`relative rounded-xl2 overflow-hidden border-2 border-dashed cursor-pointer transition-colors ${
+          orientation === 'portrait' && value && !broken ? 'max-w-sm mx-auto' : ''
+        } ${dragging ? 'border-myland-red bg-myland-red/5' : 'border-myland-mist bg-myland-cream'}`}
       >
         <input
           ref={inputRef}
@@ -1142,12 +1232,12 @@ function CoverImageField({ value, broken, busy, onBusy, onChange, onBroken, onEr
             src={mediaSrc(value)}
             alt=""
             referrerPolicy="no-referrer"
-            className="w-full h-full object-cover"
-            wrapperClassName="absolute inset-0"
+            className="w-full h-auto object-contain"
+            wrapperClassName="block w-full"
             onError={() => onBroken(true)}
           />
         ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6">
+          <div className="h-44 flex flex-col items-center justify-center text-center px-6">
             <span className="w-12 h-12 rounded-full bg-white text-myland-ink flex items-center justify-center mb-3">
               {value && broken ? <HiOutlinePhotograph className="text-xl" /> : <HiOutlineUpload className="text-xl" />}
             </span>
